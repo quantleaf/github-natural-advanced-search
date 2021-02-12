@@ -1,0 +1,34 @@
+{
+    "name": "Natural Advanced Search for GitHub",
+    "version": "0.0.1",
+    "description": "Perform Advanced Search on github with natural lnaguage",
+    "permissions": [],
+    "background": {
+      "scripts": ["background.js"],
+      "persistent": false
+    },
+    "content_scripts": [{
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": ["inject.js"],
+      "all_frames": true,
+      "run_at": "document_end"
+    }],
+    "browser_action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "16": "images/logo-16x16.png",
+        "32": "images/logo-32x32.png",
+        "48": "images/logo-48x48.png",
+        "128": "images/logo-128x128.png"
+      }
+    },
+    "icons": {
+      "16": "images/logo-16x16.png",
+      "32": "images/logo-32x32.png",
+      "48": "images/logo-48x48.png",
+      "128": "images/logo-128x128.png"
+    },
+    "manifest_version": 2
+  }
