@@ -18,3 +18,8 @@ chrome.runtime.onMessage.addListener(function(message:(string)){
   }
 });
 
+chrome.webNavigation.onHistoryStateUpdated.addListener(function() {
+  chrome.runtime.sendMessage('__ql_nav__');
+  console.log('NAV EVENT');
+
+}, {url: [{hostEquals: 'github.com'}]});

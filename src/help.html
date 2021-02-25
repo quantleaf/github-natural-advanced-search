@@ -69,22 +69,30 @@
           </div>
           <h2>Usage guide</h2>
           <h3>Perform search</h3>
-          <p>When 'Advanced search' result alternativ appear, click on it to perform it or select it by using they arrow keys.</p>
+          <p>When 'Advanced search' result alternativ appear, click on it to perform it or select it by using the arrow keys.</p>
           <h3>Suggestions</h3>
           <p>Suggestions are helping you do searches, they are based on what you can continue to type. You can press (ctrl) + (space) to show/hide more suggestions.</p>
+          <h3>Combining conditions</h3>
+          <p>Use 'and' or '&&' to combine multiple conditions. Most of the time this might not be needed as the tool automatically detects when multiple conditions are present.</p>
+          <h3>NOT condition</h3>
+          <p>You can make 'not' conditions for all properties. For example:</p>
+          <p class="ex">not owner = USERNAME</p>
+          <p class="ex">owner != USERNAME</p>
+          <p class="ex">owner not equals to USERNAME</p>
           <h3>If the interpretation is wrong</h3>
           <p>Try to be more precise. For example, you can change</p>
-          <p class="ex">invert binary tree and creation date from one year ago</p>
+          <p class="ex">content invert binary tree and creation date from one year ago</p>
           <p>to</p>
-          <p class="ex">invert binary tree and date > 2015-01-01</p>
-          <p>In some cases, text properties might be interpreted incorrectly. You can prevent this by applying quations, " ... " around the words.</p>
+          <p class="ex">content = invert binary tree && date > 2015-01-01</p>
+          <p>In some cases, text properties might be interpreted incorrectly. You can prevent this by inserting quotations around the words:</p>
           <p class="ex">content "invert binary tree"</p>
           <h3>Dates</h3>
-          <p>You can search by dates in multiple ways:</p>
+          <p>You can search by dates in multiple ways, some examples:</p>
           <p class="ex">creation date from 2005-05-05 to 2006-06-06</p>
-          <p class="ex">creation date from three years ago</p>
-          <p class="ex">creation date from one year ago</p>        
-          <p>You can query all date fields that exist in the advanced search</p>
+          <p class="ex">creation date from one year ago</p>   
+          <p class="ex">creation date before one year ago</p>    
+          <h3>A list of all searchable properties</h3>
+          Read the <a href="https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github">official documentation</a> for the advanced search. If you find a property you want to query, just write it but replace the colon with an equality symbol, e.g. 'owner:USERNAME' becomes 'owner = USERNAME' or 'owner equals USERNAME'.      
           <h3>Questions, bugs, or feature requests?</h3>
           <p>Please <a href="https://quantleaf.com/contact">contact us</a></p>
           <h3>Support us</h3>

@@ -1,9 +1,11 @@
-import { Compare, ConditionAnd, ConditionCompare, ConditionElement, Unknown } from '@quantleaf/query-result'
-import { RepositorySearch, UserSearch,IssueSearch,FileSearch, allFieldsKey} from './advanced-search-schema'; // , Text, Images, News, Shopping 
-import { translate, config, generateSchema, Field } from '@quantleaf/query-sdk-node';
+import { Compare, ConditionAnd, ConditionCompare, ConditionElement, ConditionNot, Unknown } from '@quantleaf/query-result'
+//,
+import { RepositorySearch, AdvancedSearch, UserSearch,IssueAndPrSearch,CodeSearch,  allFieldsKey, allFieldsExactMatchKey, userSchemaKey, generalSchemaKey, issueSchemaKey, repoSchemaKey, codeSchemaKey,  topicSchemaKey, userNameFields,TopicSearch, commitSchemaKey, CommitSearch,DiscussionSearch, discussionSchemaKey,} from './advanced-search-schema'; //   
+import { translate, config, generateSchema, Field,_override } from '@quantleaf/query-sdk-node';
 import { QueryResponse } from '@quantleaf/query-request';
-import { StandardDomain } from '@quantleaf/query-schema';
+import {  StandardDomain } from '@quantleaf/query-schema';
 
+_override({apiEndpoint: 'http://localhost:8080'});
 
 //Models
 interface ReadableRepresentation 
@@ -11,12 +13,14 @@ interface ReadableRepresentation
     from?:string,
     query:string, 
     errors:string[]
-}
+} 
 interface ParsedQuery {
-    queryParams?: {
-        key: string,
-        value: string
-    }[];
+    queryParams?: QueryParam[];
+}
+interface QueryParam 
+{
+    key: string,
+    value: string
 }
 interface QuerySession {
     lastReadableQuery?: ReadableRepresentation,
@@ -31,6 +35,9 @@ interface QueryStatus {
 // URL
 const urlSearchPath = "/search";
 const redirectFromQueryKey = 'fromql';
+const resultTypeQueryKey = 'type';
+const querQueryKey = 'q';
+
 
 const maxSearchLength = 250;
 
@@ -39,11 +46,12 @@ const debounceTime = 200; //ms
 const api = 'https://api.query.quantleaf.com';
 const apiKeySetupFunction = async () =>
 {
-    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => { config(apiKey); return apiKey })).catch(()=>{ serviceError = true; return null;});
+    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => {  config(apiKey); return apiKey })).catch(()=>{ serviceError = true; return null;});
 }
 var apiKeySetup = apiKeySetupFunction();
 
 // State
+
 var serviceError = false;
 var sess: QuerySession = {}
 //var lastRequestTime: number = new Date().getTime();
@@ -58,9 +66,11 @@ var load: Promise<any>;
 var advancedSearchResultFocused = false;
 var suggestionViewToggleFocused = false;
 
-var lastSelectedAutoCompleteOption = -1;
+var lastSelectedAutoCompleteOption = 0;
 var ctrlDown = false;
 var showAllSuggestions = false;
+
+var lastSearch:(string|undefined) = undefined;
 
 // UI (nasty since we are manipulating DOM and are not injecting html with iframes)
 const focusedColor = 'var(--color-bg-info-inverse)';
@@ -324,16 +334,19 @@ const unloading = () =>
 // and code that transform the generalized query structure into google query syntax
 
 // The schema we want to search on
-let schemaObjects = [new IssueSearch(), new RepositorySearch(), new FileSearch(), new UserSearch()]
+let schemaObjects = [new TopicSearch(),new DiscussionSearch(),new IssueAndPrSearch(),new RepositorySearch(), new CodeSearch(), new UserSearch(), new CommitSearch(),new AdvancedSearch()]  
 const generatedSchemas = schemaObjects.map(s => generateSchema(s));
 
 // Map by key 
-const fieldsByKey:Map<string, Field> = new Map();
+const fieldsByKey:Map<string, Map<string,Field>> = new Map();
 generatedSchemas.forEach((s) => {
+    const schemaMap:Map<string,Field> = new Map();
     s.fields.forEach((f) => {
         if(f.key)
-            fieldsByKey.set(f.key,f);
+            schemaMap.set(f.key,f);
     });
+    if(s.name.key)
+        fieldsByKey.set(s.name.key,schemaMap);
 })
 
 //const fieldIsDate = (field:Field) => field.domain = StandardDomain.DATE;
@@ -388,7 +401,63 @@ const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearc
         const errorMessages:string[] = []
         try {
             if (sess.lastResponse?.query && sess.lastResponse.query[0]?.condition) {
-                sess.parsedQuery = parseQueryResponse(sess.lastResponse.query[0].condition as (ConditionAnd | ConditionCompare),errorMessages);
+                sess.parsedQuery = parseQueryResponse(sess.lastResponse.query[0].from[0],sess.lastResponse.query[0].condition as (ConditionAnd | ConditionCompare),errorMessages);
+                if(sess.parsedQuery.queryParams)
+                {
+                    // also append the type!
+                    const from = sess.lastResponse.query[0].from[0];
+                    switch (from) {
+                        case userSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'users'
+                            })
+                            break;
+                        case issueSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'issues'
+                            })
+                            break;
+                        case repoSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'repositories'
+                            })
+                            break;
+                        case codeSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'code'
+                            })
+                            break;
+
+                        case discussionSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'discussions'
+                            })
+                            break;
+
+                        case topicSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'topics'
+                            })
+                            break;
+
+                        case commitSchemaKey:
+                            sess.parsedQuery.queryParams.push({
+                                key: resultTypeQueryKey,
+                                value: 'commits'
+                            })
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+
             }    
             if(sess.lastReadableQuery?.errors && sess.lastReadableQuery?.errors.length > 0)
             {
@@ -407,7 +476,9 @@ const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearc
                 return;
             }
         } catch (error) {
-            alert(error.message);   
+            console.error(error);
+           // alert(error.message);   
+           throw new Error(error)
         }
         
 
@@ -438,7 +509,8 @@ const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearc
 // The Quantleaf Query API call
 const getAndDrawResult = async (searchField:HTMLInputElement,input: string = '') => {
     await apiKeySetup;
-    const resp = input.length > maxSearchLength ? undefined :  await translate(input, schemaObjects, { query: {}, suggest: { limit: 300 } }, { nestedConditions: false, negativeConditions: false, concurrencySize: 1 })
+    
+    const resp = input.length > maxSearchLength ? undefined :  await translate(input, schemaObjects, { query: {}, suggest: { limit: 300 } }, { nestedConditions: false, negativeConditions: true, concurrencySize: 1 })
     handleResponse(searchField, input, resp);
 }
 
@@ -493,7 +565,15 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
         const unknownAsQuery = parseUnknownQuery(input, sess.lastResponse.unknown);
 
         // Merge in unknown query if applicable, we only check top level for now
-        if (sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length > 0 &&  unknownAsQuery) {
+        if(unknownAsQuery && sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length == 0 )
+        {
+            sess.lastResponse.query =  [{
+                from: [generalSchemaKey],
+                condition: unknownAsQuery
+            }]
+
+        }
+        else if (sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length > 0 &&  unknownAsQuery) {
             if ((sess.lastResponse.query[0].condition as ConditionAnd).and) {
                 const and = sess.lastResponse.query[0].condition as ConditionAnd;
                 if (!and.and.find((x) => (x as ConditionCompare).compare?.key == allFieldsKey)) {
@@ -514,7 +594,10 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
                     sess.lastResponse.query[0].condition = mergedCondition;
                 }
             }
+            
         }
+
+
     }
     
 
@@ -527,7 +610,9 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
         noResultsPrint()
 }
 const resultPrint = (readable: ReadableRepresentation) => {
-    textContainer.innerHTML = `<code style="font-size:14px">${readable.from}</br>${readable.query}</code></br></br>${readable.errors.map((x)=> '<span style="color:red">' + x + '</span>').join('</br>')}`;
+    if(title && readable.from)
+        title.innerHTML = readable.from;
+    textContainer.innerHTML = `<code style="font-size:14px">${readable.query}</code></br></br>${readable.errors.map((x)=> '<span style="color:red">' + x + '</span>').join('</br>')}`;
 }
 
 
@@ -675,10 +760,12 @@ const getDefaultResults = (searchField:HTMLInputElement):HTMLLIElement[] =>
         return [];
     const ret:HTMLLIElement[] = []
     const liElements = el.querySelectorAll('li:not(.d-none)');
+
     for (let i = 0; i < liElements.length; i++) {
        ret.push(liElements[i] as HTMLLIElement);
         
     }
+
     return ret;
 }
 
@@ -714,10 +801,16 @@ const drawResults = (searchField:HTMLInputElement, force?:boolean) => {
 
     }
 }
+const unfocusAdvancedSearchField = () =>
+{
+    advancedSearchResultFocused = false;
+    suggestionViewToggleFocused = false;
+}
 const ejectResult = (searchField:HTMLInputElement) => 
 {
  
     const listOutlet = getAdvancedSearchAutoCompleteContainer(searchField);
+    unfocusAdvancedSearchField();
     
     if(listOutlet)
     {
@@ -752,13 +845,16 @@ const searchFieldTextFromParsedQuery = (parsedQuery?: ParsedQuery) => {
 
 const searchQueryParamsByKey = (parsedQuery?: ParsedQuery): Map<string, string> => {
     const currentQueryParams = new Map<string, string>();
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.forEach((v,k)=> // preserve some params (from user UI input)
+  /*  const currentUrl = new URL(window.location.href);
+    if(parsedQuery?.queryParams && !parsedQuery?.queryParams[resultTypeQueryKey]) // if type is determined by query, dont preserve any parameters
     {
-        if(k != 'type') 
-            return; // for now
-        currentQueryParams.set(k,v);
-    }); 
+        currentUrl.searchParams.forEach((v,k)=> // preserve some params (from user UI input)
+        {
+            if(k != resultTypeQueryKey)  // Only preserve prior result type query params
+                return; 
+            currentQueryParams.set(k,v);
+        }); 
+    }*/
     
     if (!parsedQuery?.queryParams)
         return currentQueryParams;
@@ -789,7 +885,7 @@ const searchQueryParamsFromParsedQuery = (parsedQuery?: ParsedQuery) => {
     return par;
 }
 
-const buildUrlFromQuery = (searchField:HTMLInputElement, parsedQuery: ParsedQuery)  => `https://${window.location.hostname}${urlSearchPath}?${searchQueryParamsFromParsedQuery(parsedQuery)}&${redirectFromQueryKey}=${searchField?.value}`
+const buildUrlFromQuery = (searchField:HTMLInputElement, parsedQuery: ParsedQuery)  => `https://${window.location.hostname}${urlSearchPath}?${searchQueryParamsFromParsedQuery(parsedQuery)}&${redirectFromQueryKey}=${encodeURIComponent(searchField?.value)}`
 const navigateToQuery = (searchField:HTMLInputElement,parsedQuery: ParsedQuery) => {
     window.location.href = buildUrlFromQuery(searchField, parsedQuery);
 
@@ -829,15 +925,43 @@ const printSuggestions = () => {
     }
 }
 
+const eliminateDoubleNot = (condition: (ConditionAnd | ConditionNot | ConditionCompare)) =>
+{
+    // We do not want 'NOT a != b', but in this case, a = b
+    if((condition as ConditionAnd).and)
+    {
+        (condition as ConditionAnd).and.forEach((a)=>
+        {
+            eliminateDoubleNot(a as (ConditionAnd | ConditionNot | ConditionCompare));
+        })
+    }
+    else if((condition as ConditionNot).not)
+    {
+        const not = (condition as ConditionNot);
+        const comp = (not.not as ConditionCompare);
+
+        if(comp.compare.neq)
+        {
+            comp.compare.eq = comp.compare.neq;
+            delete comp.compare.neq;
+            delete condition['not'];     
+            Object.assign(condition,comp);
+
+        }
+    }
+}
 
 // Readable representation of the query object
 const parseReadableQuery = (response: QueryResponse): ReadableRepresentation | undefined => {
     let condition: ConditionElement = null as any;
     let from:string = '';
+    let schemaKey:string = '';
     if (response?.query && response.query.length > 0) {
         condition = response.query[0].condition;
         const froms = response.query[0].from;
-        from = froms.map(from => firstDescription(generatedSchemas.find(x => x.name.key == from)?.name.description)).join(', ');
+        // Assume only one schema per query
+        schemaKey = froms[0];
+        from = firstDescription(generatedSchemas.find(x => x.name.key == schemaKey)?.name.description);
     }
 
     if(!condition)
@@ -847,8 +971,8 @@ const parseReadableQuery = (response: QueryResponse): ReadableRepresentation | u
     const status:QueryStatus = {
         faults : []
     }
-
-    let ordinaryReadableQuery = parseReadableOrdinaryQuery(status, condition as (ConditionAnd | ConditionCompare));
+    eliminateDoubleNot(condition as (ConditionAnd | ConditionNot | ConditionCompare));
+    let ordinaryReadableQuery = parseReadableOrdinaryQuery(schemaKey, status, condition as (ConditionAnd | ConditionNot | ConditionCompare));
     if(ordinaryReadableQuery && ordinaryReadableQuery.startsWith('(') && ordinaryReadableQuery.endsWith(')'))
         ordinaryReadableQuery = ordinaryReadableQuery.substring(1,ordinaryReadableQuery.length -1);
     const ret: string[] = [];
@@ -891,7 +1015,7 @@ const parseUnknownQuery = (input: string, unknown?: Unknown[]): ConditionCompare
 
         }
         // ends with unnknown?
-        if (u.offset + u.length == input.length) {
+        if (u.offset > 0 && u.offset + u.length == input.length) {
             let value = input.substring(u.offset, u.offset + u.length);
             if (value.startsWith("\"") && value.endsWith("\"")) {
                 value = value.substring(1, value.length - 1);
@@ -938,7 +1062,7 @@ const pad = (text:string) => ' ' + text+ ' '
 //const italic = (text:string) => '<i>' + text+ '</i>'
 const wrapJoin = (arr:string[],delimiter:string) => delimiter.length == 0 ? arr.join('</br>') :  arr.join('</br>'+ delimiter+'</br>')
 
-const conditionsReadable = (status:QueryStatus, condition:(ConditionAnd), depth) =>
+const conditionsReadable = (schemaKey:string, status:QueryStatus, condition:(ConditionAnd), depth) =>
 {
     let delimiter = '';
     let arr = ((condition as ConditionAnd).and);
@@ -947,18 +1071,18 @@ const conditionsReadable = (status:QueryStatus, condition:(ConditionAnd), depth)
     
     const join: string[] = [];
     arr.forEach((element) => {
-        const compare = parseReadableOrdinaryQuery(status, element as (ConditionAnd | ConditionCompare), 1);
+        const compare = parseReadableOrdinaryQuery(schemaKey,status, element as (ConditionAnd | ConditionCompare), 1);
         if (compare)
         join.push(compare);
     });
     return indent(join.length > 1 ? `${wrapJoin(join,delimiter)}` : join[0],depth);
 }
 
-const parseReadableOrdinaryQuery = (status:QueryStatus, condition: (ConditionAnd | ConditionCompare), depth = 0):string => {
+const parseReadableOrdinaryQuery = (schemaKey:string, status:QueryStatus, condition: (ConditionAnd | ConditionCompare | ConditionNot ), depth = 0):string => {
 
     if(!condition)
         return '';
-    const fromAnd = conditionsReadable(status,condition as (ConditionAnd), depth);
+    const fromAnd = conditionsReadable(schemaKey,status,condition as (ConditionAnd), depth);
     if(fromAnd)
         return fromAnd;
     
@@ -966,50 +1090,80 @@ const parseReadableOrdinaryQuery = (status:QueryStatus, condition: (ConditionAnd
     if ((condition as ConditionCompare).compare) {
         const compElements: string[] = [];
         const comp = (condition as ConditionCompare).compare;        
-        compElements.push(firstDescription(fieldsByKey.get(comp.key)?.description));
-        if (comp.eq) {
-            compElements.push(pad(strong('=')) + formatValue(comp.key, comp.eq));
+        compElements.push(firstDescription(fieldsByKey.get(schemaKey)?.get(comp.key)?.description));
+        if (comp.eq != undefined) {
+            compElements.push(pad(strong('=')) + formatValue(schemaKey,comp.key, comp.eq,false));
         }
-        else if (comp.gt) {
-            compElements.push(pad(strong('>')) + formatValue(comp.key, comp.gt));
+        else if (comp.gt != undefined) {
+            compElements.push(pad(strong('>')) + formatValue(schemaKey,comp.key, comp.gt,false));
         }
-        else if (comp.gte) {
-            compElements.push(pad(strong('≥')) + formatValue(comp.key, comp.gte));
+        else if (comp.gte != undefined) {
+            compElements.push(pad(strong('≥')) + formatValue(schemaKey,comp.key, comp.gte,false));
         }
-        else if (comp.lt) {
-            compElements.push(pad(strong('<')) + formatValue(comp.key, comp.lt));
+        else if (comp.lt != undefined) {
+            compElements.push(pad(strong('<')) + formatValue(schemaKey,comp.key, comp.lt,false));
         }
-        else if (comp.lte) {
-            compElements.push(pad(strong('≤')) + formatValue(comp.key, comp.lte));
+        else if (comp.lte != undefined) {
+            compElements.push(pad(strong('≤')) + formatValue(schemaKey,comp.key, comp.lte,false));
+        }
+        else if (comp.neq != undefined) {
+            compElements.push(pad(strong('≠')) + formatValue(schemaKey,comp.key, comp.neq,false));
         }
     
         const conditionReadable = compElements.join('');
         return conditionReadable;
     }
+    else if((condition as ConditionNot).not) {
+        return strong('NOT') + ' ' + parseReadableOrdinaryQuery(schemaKey,status,(condition as ConditionNot).not as (ConditionAnd | ConditionCompare))
+    }
     return '';
 }
 
+const  isObject = (item) => {
+    return (item && typeof item === 'object' && !Array.isArray(item));
+}
+  
+const mergeDeep = (target, source) => {
+    let output = Object.assign({}, target);
+    if (isObject(target) && isObject(source)) {
+      Object.keys(source).forEach(key => {
+        if (isObject(source[key])) {
+          if (!(key in target))
+            Object.assign(output, { [key]: source[key] });
+          else
+            output[key] = mergeDeep(target[key], source[key]);
+        } else {
+          Object.assign(output, { [key]: source[key] });
+        }
+      });
+    }
+    return output;
+}
 
-
-const parseGroupNumberConditions = (condition:(ConditionAnd  | ConditionCompare )) => 
+const domainIsGroupable = (domain:any) => 
 {
-    if((condition as ConditionCompare).compare)
+    return domain == StandardDomain.NUMBER || domain == StandardDomain.DATE 
+}
+
+const parseGroupNumberConditions = (schemaKey:string, condition:(ConditionAnd  | ConditionCompare | ConditionNot )) => 
+{
+    if((condition as ConditionCompare).compare || (condition as ConditionNot).not)
         return condition;
     
-    const numberFieldsMap:Map<string,ConditionCompare[]> = new Map();
+    const groupMap:Map<string,ConditionCompare[]> = new Map();
     const newAnd:ConditionCompare[] = [];
     const and = (condition as ConditionAnd).and;
-    and.forEach((a)=>
+    and?.forEach((a)=>
     {
         const cc = a as ConditionCompare;
         const comp = cc.compare;
-        if(fieldsByKey.has(comp.key) && fieldsByKey.get(comp.key)?.domain == StandardDomain.NUMBER)
+        if(fieldsByKey.has(comp.key) && domainIsGroupable(fieldsByKey.get(schemaKey)?.get(comp.key)?.domain))
         {
-            let arr = numberFieldsMap.get(comp.key);
+            let arr = groupMap.get(comp.key);
             if(!arr)
             {
                 arr = [];
-                numberFieldsMap.set(comp.key,arr);
+                groupMap.set(comp.key,arr);
             }
             arr.push(cc);
         }
@@ -1018,39 +1172,27 @@ const parseGroupNumberConditions = (condition:(ConditionAnd  | ConditionCompare 
             newAnd.push(cc);
         }
     });
-    numberFieldsMap.forEach((group)=>
+    groupMap.forEach((group)=>
     {
-        newAnd.push(Object.assign({}, ...group));
+        let merge = group[0];
+        for (let i = 1; i < group.length; i++) {
+            merge = mergeDeep(merge,group[i])
+            
+        }
+        newAnd.push(merge);
     });
     (condition as ConditionAnd).and = newAnd;
+    console.log('grouped', JSON.stringify(condition));
     return condition;
 
 }
-const parseQueryResponse = (condition:(ConditionAnd  | ConditionCompare ), errorMessages:string[]): ParsedQuery => {
+const parseQueryResponse = (schemaKey:string, condition:(ConditionAnd  | ConditionCompare | ConditionNot ), errorMessages:string[]): ParsedQuery => {
     if (!condition)
         return {};
 
-    const ordinaryConditions = parseOrdinaryConditions(parseGroupNumberConditions(condition),errorMessages);
-    const merged = mergeParsedQueries([ordinaryConditions]);
-    return merged;
-}
+    const ordinaryConditions = parseOrdinaryConditions(schemaKey,parseGroupNumberConditions(schemaKey, condition),errorMessages);
 
-
-const mergeParsedQueries = (queries: ParsedQuery[]): ParsedQuery => {
-    const queryParamsBuilder: any[] = [];
-    queries.forEach((q) => {
-        if (!q)
-            return;
-
-        if (q.queryParams) {
-            queryParamsBuilder.push(...q.queryParams);
-        }
-
-    })
-    return {
-        queryParams: queryParamsBuilder
-    }
-
+    return ordinaryConditions;
 }
 
 
@@ -1086,16 +1228,19 @@ const compareValue = (comp:Compare) =>
      else if (comp.lte != undefined) {
         return comp.lte
      }
+     else if (comp.neq != undefined) {
+        return comp.neq
+     }
      return  undefined;
 }
 
-const parseOrdinaryConditions = (condition: ConditionElement,errorMessages:string[]): ParsedQuery => {
+const parseOrdinaryConditions = (schemaKey:string, condition: (ConditionAnd | ConditionCompare | ConditionNot),errorMessages:string[]): ParsedQuery => {
     if (!condition)
         return {};
     if ((condition as ConditionAnd).and) {
-        const queryParams: any[] = [];
+        const queryParams:QueryParam[] = [];
         (condition as ConditionAnd).and.forEach((element) => {
-            const parseResult = parseQueryResponse(element as (ConditionAnd | ConditionCompare), errorMessages);
+            const parseResult = parseQueryResponse(schemaKey, element as (ConditionAnd | ConditionCompare), errorMessages);
             if (parseResult.queryParams)
                 queryParams.push(...parseResult.queryParams)   
         });
@@ -1103,36 +1248,43 @@ const parseOrdinaryConditions = (condition: ConditionElement,errorMessages:strin
             queryParams: queryParams
         };
     }
-    if ((condition as ConditionCompare).compare) {
+    else if ((condition as ConditionNot).not) {
+        const nested = parseOrdinaryConditions(schemaKey, ((condition as ConditionNot).not) as ConditionCompare, errorMessages);
+        nested.queryParams?.forEach((param)=>
+        {
+            param.value = '-'+param.value; 
+        });
+        return nested;
+    }
+    else if ((condition as ConditionCompare).compare) {
         const comp = (condition as ConditionCompare).compare;
         {
-        
-            
             if(Object.keys(comp).length == 2)
             {
+                const isTextKey = comp.key == allFieldsKey || comp.key == allFieldsExactMatchKey;
                 return { 
-                
+    
                     queryParams: [
                         {
-                            key: 'q',
-                            value:  (comp.key == allFieldsKey ? '' : String(comp.key)+ ':') + comparatorSymbolNonText(comp) +  formatValue(comp.key,compareValue(comp))
+                            key: querQueryKey,
+                            value:  (comp.neq != undefined ? (isTextKey ? 'NOT ' : '-'):'') + (isTextKey ? '' : String(comp.key)+ ':') + comparatorSymbolNonText(comp) +  formatValue(schemaKey,comp.key,compareValue(comp),!isTextKey)
                         }
                     ]
                 }
             }
-            else // Number and merged
+            else // Number and dates has been merged
             {
-                let from = '';
-                let to = '';
+                let from = '*';
+                let to = '*';
 
                 if(comp.lte != undefined)
-                    to = comp.lte;
+                    to = formatValue(schemaKey,comp.key,comp.lte);
                 if(comp.lt != undefined)
-                    to = comp.lt;
+                    to = formatValue(schemaKey,comp.key,comp.lt);
                 if(comp.gte != undefined)
-                    from = comp.gte;
+                    from = formatValue(schemaKey,comp.key,comp.gte);
                 if(comp.gt != undefined)
-                    from = comp.gt;
+                    from = formatValue(schemaKey,comp.key,comp.gt);
                 if(comp.eq != undefined)
                 {
                     // comp eq outside range, well just ignore it?
@@ -1143,7 +1295,7 @@ const parseOrdinaryConditions = (condition: ConditionElement,errorMessages:strin
                     queryParams: [
                         {
                             key: 'q',
-                            value:  `${comp.key}:${from}'...'${to}`
+                            value:  `${comp.key}:${from}..${to}`
                         }
                     ]
                 }
@@ -1173,26 +1325,38 @@ const formatDate = (ms) => {
     return year +  '-' + month + '-' + day;
 
 }
+const escape = (text:string) => '"' + text + '"'
 
-const formatValue = (key:string, value:any) => {
-    const field = fieldsByKey.get(key) as Field;
+const formatValue = (schemaKey:string, key:string, value:any,asQueryValue = true) => {
+    const field = fieldsByKey.get(schemaKey)?.get(key) as Field;
     if(!field || !field.domain)
         throw new Error('Field missing');
     let ret = '';
-    
+
     if (field.domain == 'DATE') {
         ret = formatDate(value);
+        return ret;
         
     }
     else if (typeof field.domain != 'string' && field.domain[value]) // Enum domain!
     {
         let desc = firstDescription(field.domain[value]);
-        if (desc)
+        if (desc && !asQueryValue)
             ret = desc;
         else 
             ret = value;
     }
-    else ret = value;
+    else 
+    {
+        ret = value;
+        if(userNameFields.has(key) && ret == 'me')
+            ret = '@me';
+    }
+
+    if(asQueryValue && (key == allFieldsExactMatchKey ||  /\s/g.test(ret as string)))
+    {
+        ret = escape(ret);
+    }
     return ret;
 }
 const firstDescription = (desc) => {
@@ -1229,6 +1393,7 @@ const  initialize = async () => {
         const s1 =  document.querySelector('header form[role="search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
         const s2 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
         const s3 =  document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
+        searchFields = [];
         if(s1)
             searchFields.push(s1);
         if(s2)
@@ -1236,6 +1401,7 @@ const  initialize = async () => {
         if(s3 && !s2)
             searchFields.push(s3);
         findCounter++;
+
         if (findCounter > maxTriesFind)
             break;
         if (searchFields.length > 0)
@@ -1252,36 +1418,7 @@ const  initialize = async () => {
         {
             getAndDrawResult(searchFields[0], searchFields[0]?.value);
         }
-        document.body.addEventListener("keydown", event => {
-            if (event.keyCode === 17) {
-                ctrlDown = true;
-                return;
-            }
-        });
-        document.body.addEventListener("keyup", event => {
-            if (event.keyCode === 17) {
-                ctrlDown = false;
-            }
-            if (event.keyCode === 32) {
-                // Space clicked, toggle suggestions
-                if (ctrlDown) {
-                    showAllSuggestions = !showAllSuggestions;   
-                    printSuggestions();
-                }
-                return;
-            }
-        });
-        document.addEventListener("keydown", event => {
-
-           
-            
-            if (event.keyCode === 13 && advancedSearchResultFocused) {
-                stopEvent(event);
-                navigateSearch(lastSelectedSearchField, true);
-                return;
-            }
-        });
-
+        
        /* lastSearchField.addEventListener("keypress", () => {
             if(sess?.parsedQuery)
             {
@@ -1289,6 +1426,7 @@ const  initialize = async () => {
             }
         }
         );*/
+        console.log(searchFields)
         searchFields.forEach((searchField) => searchField.addEventListener("keydown", async (event) => {
             const arrowUp =  event.key == 'ArrowUp';
             const arrowDown =  event.key == 'ArrowDown';
@@ -1297,7 +1435,6 @@ const  initialize = async () => {
                 // key down
                 const defaultResults = getDefaultResults(searchField);
                 const lastFocused = lastSelectedAutoCompleteOption == defaultResults.length - 1;
-    
                 if(lastFocused && arrowDown)
                 {
                     advancedSearchResultFocused = true;
@@ -1325,7 +1462,6 @@ const  initialize = async () => {
             const arrowUp =  event.key == 'ArrowUp';
             const arrowDown =  event.key == 'ArrowDown';
             lastSelectedSearchField = searchField;
-          
             if(arrowUp || arrowDown)
             {
                 const defaultResults = getDefaultResults(searchField);
@@ -1357,13 +1493,22 @@ const  initialize = async () => {
         searchFields.forEach((searchField) => searchField.addEventListener("keyup", async (event) => {
             if(event.key  == 'ArrowDown' || event.key == 'ArrowUp')
                 return;
+            const newValue = searchField?.value; 
+            await load;
+            if(newValue != searchField?.value)
+                return;
+            if(newValue == lastSearch)
+                return;
+            lastSearch = newValue;
+            unfocusAdvancedSearchField();
+
             hasTypedAnything = true;
-            updateAutoCompleteStyle();   
-    
+            updateAutoCompleteStyle();  
+           
             sess.lastReadableQuery = undefined;
             sess.lastResponse = undefined;
             sess.parsedQuery = undefined;
-            await load;
+           
             loading();
             load = new Promise((resolve) => {
                 debounce(() => {
@@ -1388,6 +1533,7 @@ const  initialize = async () => {
        
         searchFields.forEach((searchField) => searchField.addEventListener("click", () => {
             
+            console.log('CLICK')
             lastSelectedSearchField = searchField;
             restoreLastSearchQuery(searchField);
             observer.disconnect();  
@@ -1406,26 +1552,98 @@ const  initialize = async () => {
                 
             }, 0);
         }));
-
-        
-        window.addEventListener('click',  (e) => {
-            if (e.target)
-                if (advancedSearchResultContainer.contains(e.target as Node) || lastSelectedSearchField?.contains(e.target as Node))
-                {
-                
-                }
-                else if(lastSelectedSearchField) {
-                    ejectResult(lastSelectedSearchField);
-                }
-        });
-
-
     }
 }
 
-MutationObserver = window.MutationObserver
-var observer = new MutationObserver(function() {
-   updateAutoCompleteStyle();   
+document.body.addEventListener("keydown", event => {
+    if (event.keyCode === 17) {
+        ctrlDown = true;
+        return;
+    }
+    
+});
+document.body.addEventListener("keyup", event => {
+    if (event.keyCode === 17) {
+        ctrlDown = false;
+    }
+    if (event.keyCode === 32) {
+        // Space clicked, toggle suggestions
+        if (ctrlDown) {
+            showAllSuggestions = !showAllSuggestions;   
+            printSuggestions();
+        }
+        return;
+    }
+});
+document.addEventListener("keydown", event => {
+
+   
+    
+    if (event.keyCode === 13 && advancedSearchResultFocused) {
+        stopEvent(event);
+        navigateSearch(lastSelectedSearchField, true);
+        return;
+    }
 });
 
-initialize();
+window.addEventListener('click',  (e) => {
+    if (e.target)
+        if (advancedSearchResultContainer.contains(e.target as Node) || lastSelectedSearchField?.contains(e.target as Node))
+        {
+        
+        }
+        else if(lastSelectedSearchField) {
+            ejectResult(lastSelectedSearchField);
+        }
+});
+
+
+MutationObserver = window.MutationObserver
+var observer = new MutationObserver(function() {
+   
+   updateAutoCompleteStyle();   
+});
+/*
+var lastUrl = window.location.href;
+ console.log('CHANGE? ', window.location.href != lastUrl)
+
+    if(window.location.href != lastUrl)
+    {
+        console.log('init!')
+        initialize();
+    }
+    lastUrl = window.location.href;
+const targetNode = document;
+const observerOptions = {
+  childList: true,
+  attributes: true,
+  subtree: true
+}
+
+observer.observe(targetNode,observerOptions)*/
+
+const checkInitialize = async () =>
+{
+    if(!inserted)
+        await initialize();
+    console.log('CHECK INIT')
+    await new Promise((resolve)=>{
+        setTimeout(() => {
+            resolve(true);
+        }, 2000);
+    });
+    checkInitialize();
+}
+checkInitialize();
+
+chrome.runtime.onMessage.addListener(function(message:(string)){
+    console.log('GOT MESSAGE');
+
+     if (message == "__ql_nav__"){
+        initialize();
+
+     }
+});
+
+
+window.onhashchange = function(e){console.log('CHANGE DIR', e);}
