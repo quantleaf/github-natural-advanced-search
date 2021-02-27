@@ -120,7 +120,51 @@ export class RepositorySearch  extends AdvancedSearch {
     @FieldInfo({
         key: 'license',
         description: 'license',
-        domain: ['BSD Zero Clause License', 'Academic Free License v3.0', 'GNU Affero General Public License v3.0', 'Apache License 2.0', 'Artistic License 2.0', 'BSD 2-Clause "Simplified" License', 'BSD 3-Clause "New" or "Revised" License', 'BSD 3-Clause Clear License', 'BSD 4-Clause "Original" or "Old" License', 'Boost Software License 1.0', 'Creative Commons Attribution 4.0 International', 'Creative Commons Attribution Share Alike 4.0 International', 'Creative Commons Zero v1.0 Universal', 'CeCILL Free Software License Agreement v2.1', 'Educational Community License v2.0', 'Eclipse Public License 1.0', 'Eclipse Public License 2.0', 'European Union Public License 1.1', 'European Union Public License 1.2', 'GNU General Public License v2.0', 'GNU General Public License v3.0', 'ISC License', 'GNU Lesser General Public License v2.1', 'GNU Lesser General Public License v3.0', 'LaTeX Project Public License v1.3c', 'MIT License', 'Mozilla Public License 2.0', 'Microsoft Public License', 'Microsoft Reciprocal License', 'University of Illinois/NCSA Open Source License', 'ODC Open Database License v1.0', 'SIL Open Font License 1.1', 'Open Software License 3.0', 'PostgreSQL License', 'The Unlicense', 'Universal Permissive License v1.0', 'Vim License', 'Do What The F*ck You Want To Public License', 'zlib License', 'Creative Commons', 'GNU General Public License', 'GNU Lesser General Public License']
+        domain: 
+        {
+            "0bsd" : "BSD Zero Clause License",
+            "afl-3.0" : "Academic Free License v3.0",
+            "agpl-3.0" : "GNU Affero General Public License v3.0",
+            "apache-2.0" : "Apache License 2.0",
+            "artistic-2.0" : "Artistic License 2.0",
+            "bsd-2-clause" : ['BSD 2-Clause','BSD 2-Clause "Simplified" License'],
+            "bsd-3-clause" : ['BSD 3-Clause','BSD 3-Clause "New" or "Revised" License'],
+            "bsd-3-clause-clear" : "BSD 3-Clause Clear License",
+            "bsd-4-clause" : ['BSD 4-Clause','BSD 4-Clause "Original" or "Old" License'],
+            "bsl-1.0" : "Boost Software License 1.0",
+            "cc-by-4.0" : "Creative Commons Attribution 4.0 International",
+            "cc-by-sa-4.0" : "Creative Commons Attribution Share Alike 4.0 International",
+            "cc0-1.0" : "Creative Commons Zero v1.0 Universal",
+            "cecill-2.1" : "CeCILL Free Software License Agreement v2.1",
+            "ecl-2.0" : "Educational Community License v2.0",
+            "epl-1.0" : "Eclipse Public License 1.0",
+            "epl-2.0" : "Eclipse Public License 2.0",
+            "eupl-1.1" : "European Union Public License 1.1",
+            "eupl-1.2" : "European Union Public License 1.2",
+            "gpl-2.0" : "GNU General Public License v2.0",
+            "gpl-3.0" : "GNU General Public License v3.0",
+            "isc" : "ISC License",
+            "lgpl-2.1" : "GNU Lesser General Public License v2.1",
+            "lgpl-3.0" : "GNU Lesser General Public License v3.0",
+            "lppl-1.3c" : "LaTeX Project Public License v1.3c",
+            "mit" : "MIT License",
+            "mpl-2.0" : "Mozilla Public License 2.0",
+            "ms-pl" : "Microsoft Public License",
+            "ms-rl" : "Microsoft Reciprocal License",
+            "ncsa" : "University of Illinois/NCSA Open Source License",
+            "odbl-1.0" : "ODC Open Database License v1.0",
+            "ofl-1.1" : "SIL Open Font License 1.1",
+            "osl-3.0" : "Open Software License 3.0",
+            "postgresql" : "PostgreSQL License",
+            "unlicense" : "The Unlicense",
+            "upl-1.0" : "Universal Permissive License v1.0",
+            "vim" : "Vim License",
+            "wtfpl" : "Do What The Fuck You Want To Public License",
+            "zlib" : "zlib License",
+            "cc" : "Creative Commons",
+            "gpl" : "GNU General Public License",
+            "lgpl" : "GNU Lesser General Public License"
+        }
     })
     license: string;
 
@@ -249,8 +293,8 @@ export class CommitSearch extends TextSearch  {
         key: 'merge',
         description: ['commit type'],
         domain: {
-            'true' : ['merge commit','merge commits'],
-            'false' : ['non merge commit','non-merge commits']
+            'true' : ['merged commit','merged commits'],
+            'false' : ['non merged commit','non-merged commits']
         }
 
         })

@@ -17,9 +17,3 @@ chrome.runtime.onMessage.addListener(function(message:(string)){
     window.open('https://www.buymeacoffee.com/quantleaf','_blank');
   }
 });
-
-chrome.webNavigation.onHistoryStateUpdated.addListener(function() {
-  chrome.runtime.sendMessage('__ql_nav__');
-  console.log('NAV EVENT');
-
-}, {url: [{hostEquals: 'github.com'}]});

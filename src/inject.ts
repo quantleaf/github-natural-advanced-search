@@ -1,24 +1,21 @@
 import { Compare, ConditionAnd, ConditionCompare, ConditionElement, ConditionNot, Unknown } from '@quantleaf/query-result'
-//,
-import { RepositorySearch, AdvancedSearch, UserSearch,IssueAndPrSearch,CodeSearch,  allFieldsKey, allFieldsExactMatchKey, userSchemaKey, generalSchemaKey, issueSchemaKey, repoSchemaKey, codeSchemaKey,  topicSchemaKey, userNameFields,TopicSearch, commitSchemaKey, CommitSearch,DiscussionSearch, discussionSchemaKey,} from './advanced-search-schema'; //   
-import { translate, config, generateSchema, Field,_override } from '@quantleaf/query-sdk-node';
+import { RepositorySearch, AdvancedSearch, UserSearch, IssueAndPrSearch, CodeSearch, allFieldsKey, allFieldsExactMatchKey, userSchemaKey, generalSchemaKey, issueSchemaKey, repoSchemaKey, codeSchemaKey, topicSchemaKey, userNameFields, TopicSearch, commitSchemaKey, CommitSearch, DiscussionSearch, discussionSchemaKey, } from './advanced-search-schema'; //   
+import { translate, config, generateSchema, Field, _override } from '@quantleaf/query-sdk-node';
 import { QueryResponse } from '@quantleaf/query-request';
-import {  StandardDomain } from '@quantleaf/query-schema';
-
-_override({apiEndpoint: 'http://localhost:8080'});
-
+import { StandardDomain } from '@quantleaf/query-schema';
+_override({
+    apiEndpoint: 'http://localhost:8080'
+});
 //Models
-interface ReadableRepresentation 
-{
-    from?:string,
-    query:string, 
-    errors:string[]
-} 
+interface ReadableRepresentation {
+    from?: string,
+    query: string,
+    errors: string[]
+}
 interface ParsedQuery {
     queryParams?: QueryParam[];
 }
-interface QueryParam 
-{
+interface QueryParam {
     key: string,
     value: string
 }
@@ -44,9 +41,8 @@ const maxSearchLength = 250;
 // Settings
 const debounceTime = 200; //ms
 const api = 'https://api.query.quantleaf.com';
-const apiKeySetupFunction = async () =>
-{
-    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => {  config(apiKey); return apiKey })).catch(()=>{ serviceError = true; return null;});
+const apiKeySetupFunction = async () => {
+    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => { config(apiKey); return apiKey })).catch(() => { serviceError = true; return null; });
 }
 var apiKeySetup = apiKeySetupFunction();
 
@@ -58,8 +54,8 @@ var sess: QuerySession = {}
 var lastSuggestions: string | undefined;
 //var limitedSuggestions: boolean = false;
 
-var searchFields:HTMLInputElement[] = [];
-var lastSelectedSearchField:HTMLInputElement;
+var searchFields: HTMLInputElement[] = [];
+var lastSelectedSearchField: HTMLInputElement;
 
 var hasTypedAnything = false;
 var load: Promise<any>;
@@ -70,9 +66,13 @@ var lastSelectedAutoCompleteOption = 0;
 var ctrlDown = false;
 var showAllSuggestions = false;
 
-var lastSearch:(string|undefined) = undefined;
+var lastSearch: (string | undefined) = undefined;
+var lastSelectionStart = -1;
+
+var lastSearchFromUrl: (string | undefined) = undefined; 
 
 // UI (nasty since we are manipulating DOM and are not injecting html with iframes)
+const eventListenerTag = '__ql__'
 const focusedColor = 'var(--color-bg-info-inverse)';
 const focusedTextColor = 'var(--color-text-white)';
 const backgroundColor = 'var(--color-bg-primary)';
@@ -95,17 +95,17 @@ advancedSearchResultContainer.style.borderTop = 'none';
 
 advancedSearchResultContainer.style.cursor = 'pointer';
 advancedSearchResultContainer.style.borderRadius = '6px';
-advancedSearchResultContainer.onmouseenter = () => 
-{
-   
+advancedSearchResultContainer.style.color = textColor;
+
+advancedSearchResultContainer.onmouseenter = () => {
+
     advancedSearchResultFocused = true;
     unfocusDefaultAutoCompleteOptions();
-    
+
     updateAutoCompleteStyle();
 }
 
-advancedSearchResultContainer.onmouseleave = () => 
-{
+advancedSearchResultContainer.onmouseleave = () => {
     advancedSearchResultContainer.style.backgroundColor = backgroundColor;
     advancedSearchResultContainer.style.color = textColor;
     advancedSearchResultFocused = false;
@@ -137,14 +137,14 @@ loadingSpinnerSvg.style.marginRight = '4px';
 loadingSpinnerSvg.style.marginTop = '2px';
 
 loadingSpinnerSvg.innerHTML = spinner;
-var loadingSpinnerText= document.createElement('span');
+var loadingSpinnerText = document.createElement('span');
 loadingSpinnerText.innerHTML = 'Loading'
 loadingSpinnerText.style.fontStyle = 'italic';
 loadingSpinnerText.style.fontSize = '10pt';
 loadingSpinner.style.marginLeft = 'auto';
 loadingSpinner.style.display = 'flex'
 loadingSpinner.style.flexDirection = 'row'
-loadingSpinner.style.alignItems  = 'center'
+loadingSpinner.style.alignItems = 'center'
 loadingSpinner.style.height = '20px';
 loadingSpinner.style.marginRight = '-4px';
 loadingSpinner.appendChild(loadingSpinnerText);
@@ -263,37 +263,22 @@ footer.appendChild(donationDiv);
 advancedSearchResultContainer.appendChild(footer);
 
 
-const unfocusDefaultAutoCompleteOptions = () => 
-{
+const unfocusDefaultAutoCompleteOptions = () => {
     const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastSelectedSearchField);
     for (let i = 0; i < defaultList?.children.length; i++) {
         const element = defaultList?.children[i];
         (element as HTMLElement)?.classList.remove("navigation-focus");
-        (element as HTMLElement)?.setAttribute('aria-selected','false');        
+        (element as HTMLElement)?.setAttribute('aria-selected', 'false');
     }
 }
 
-const focusLastDefaultAutoCompleteOption = () => 
-{
+const focusLastDefaultAutoCompleteOption = () => {
     const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastSelectedSearchField);
-    if(defaultList)
-    {
+    if (defaultList) {
         const element = defaultList.lastElementChild;
         (element as HTMLElement)?.classList.add("navigation-focus");
-        (element as HTMLElement)?.setAttribute('aria-selected','true');        
+        (element as HTMLElement)?.setAttribute('aria-selected', 'true');
     }
-}
-const setDynamicStyle = () => {
-    // detect color mode light/dark
-
-    const light = true;
-    if(light)
-    {
-        advancedSearchResultContainer.style.borderBottom = 'border-bottom: 1px solid #e1e4e8'
-        advancedSearchResultContainer.style.color = textColor;
-
-    }
-
 }
 /*
 const  getPathTo = (element) => {
@@ -315,14 +300,12 @@ const  getPathTo = (element) => {
 
 
 
-const loading = () =>
-{
+const loading = () => {
     unloading();
     header.appendChild(loadingSpinner);
 }
 
-const unloading = () =>
-{
+const unloading = () => {
     try {
         header.removeChild(loadingSpinner);
     } catch (error) {
@@ -334,76 +317,79 @@ const unloading = () =>
 // and code that transform the generalized query structure into google query syntax
 
 // The schema we want to search on
-let schemaObjects = [new TopicSearch(),new DiscussionSearch(),new IssueAndPrSearch(),new RepositorySearch(), new CodeSearch(), new UserSearch(), new CommitSearch(),new AdvancedSearch()]  
+let schemaObjects = [new TopicSearch(), new DiscussionSearch(), new IssueAndPrSearch(), new RepositorySearch(), new CodeSearch(), new UserSearch(), new CommitSearch(), new AdvancedSearch()]
 const generatedSchemas = schemaObjects.map(s => generateSchema(s));
 
 // Map by key 
-const fieldsByKey:Map<string, Map<string,Field>> = new Map();
+const fieldsByKey: Map<string, Map<string, Field>> = new Map();
 generatedSchemas.forEach((s) => {
-    const schemaMap:Map<string,Field> = new Map();
+    const schemaMap: Map<string, Field> = new Map();
     s.fields.forEach((f) => {
-        if(f.key)
-            schemaMap.set(f.key,f);
+        if (f.key)
+            schemaMap.set(f.key, f);
     });
-    if(s.name.key)
-        fieldsByKey.set(s.name.key,schemaMap);
+    if (s.name.key)
+        fieldsByKey.set(s.name.key, schemaMap);
 })
 
 //const fieldIsDate = (field:Field) => field.domain = StandardDomain.DATE;
 
 
+const fromSession = () => {
+    const url = new URL(window.location.href).searchParams.get(redirectFromQueryKey);
+    if (url)
+        return decodeURI(url);
+    return undefined;
+};
 
-const fromSession = () => new URL(window.location.href).searchParams.get(redirectFromQueryKey)
+const preRestoreFormUrl = () => {
+    lastSearchFromUrl =  fromSession();
+}
 
-const restoreLastSearchQuery = async (searchField:HTMLInputElement) => {
-    
-    if ( hasTypedAnything) {
+
+const restoreLastSearchQuery = async (searchField: HTMLInputElement) => {
+
+    if (hasTypedAnything) {
         return;
     }
 
-    const lastSession = fromSession();
-    if (lastSession) {
-  
-        restoreSearchFieldText(searchField,lastSession);
-        getAndDrawResult(searchField,lastSession);
-
-    
+    if (lastSearchFromUrl) {
+        restoreSearchFieldText(searchField, lastSearchFromUrl);
+        getAndDrawResult(searchField, lastSearchFromUrl);
     }
 }
 
 const debounce = <T extends (...args: any[]) => any>(
     callback: T,
     waitFor: number
-  ) => {
+) => {
     var timeout = null;
     return (...args: Parameters<T>): ReturnType<T> => {
-      let result: any;
-      clearTimeout(timeout as any as number);
-      timeout = setTimeout(() => {
-        result = callback(...args);
-      }, waitFor) as any;
-      return result;
+        let result: any;
+        clearTimeout(timeout as any as number);
+        timeout = setTimeout(() => {
+            result = callback(...args);
+        }, waitFor) as any;
+        return result;
     };
 };
 
-const restoreSearchFieldText = (searchField:HTMLInputElement,text:string) => {
-    if(text != undefined)
+const restoreSearchFieldText = (searchField: HTMLInputElement, text: string) => {
+    if (text != undefined)
         insertText(searchField, text);
-    
+
 }
 
-const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearch: boolean) => {
+const navigateSearch = async (fromSearchField: HTMLInputElement, useAdvancedSearch: boolean) => {
 
 
-    if(useAdvancedSearch)
-    {
+    if (useAdvancedSearch) {
         await load;
-        const errorMessages:string[] = []
+        const errorMessages: string[] = []
         try {
             if (sess.lastResponse?.query && sess.lastResponse.query[0]?.condition) {
-                sess.parsedQuery = parseQueryResponse(sess.lastResponse.query[0].from[0],sess.lastResponse.query[0].condition as (ConditionAnd | ConditionCompare),errorMessages);
-                if(sess.parsedQuery.queryParams)
-                {
+                sess.parsedQuery = parseQueryResponse(sess.lastResponse.query[0].from[0], sess.lastResponse.query[0].condition as (ConditionAnd | ConditionCompare), errorMessages);
+                if (sess.parsedQuery.queryParams) {
                     // also append the type!
                     const from = sess.lastResponse.query[0].from[0];
                     switch (from) {
@@ -458,32 +444,30 @@ const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearc
                 }
 
 
-            }    
-            if(sess.lastReadableQuery?.errors && sess.lastReadableQuery?.errors.length > 0)
-            {
+            }
+            if (sess.lastReadableQuery?.errors && sess.lastReadableQuery?.errors.length > 0) {
                 alert('Query contains errors' + JSON.stringify(sess.lastReadableQuery?.errors));
                 return;
             }
-            if(!sess.parsedQuery?.queryParams || sess.parsedQuery?.queryParams?.length == 0)
-            {
+            if (!sess.parsedQuery?.queryParams || sess.parsedQuery?.queryParams?.length == 0) {
                 alert('No advanced search query has been created');
                 return;
             }
             else if (sess.parsedQuery) // Only change value if we actually have parsed any query
             {
-                        
-                navigateToQuery(fromSearchField,sess.parsedQuery);
+
+                navigateToQuery(fromSearchField, sess.parsedQuery);
                 return;
             }
         } catch (error) {
             console.error(error);
-           // alert(error.message);   
-           throw new Error(error)
+            // alert(error.message);   
+            throw new Error(error)
         }
-        
+
 
     }
-    
+
     // clean up url and tnavigate
     // reset url
     let newUrl = window.location.href;
@@ -507,21 +491,19 @@ const navigateSearch = async (fromSearchField:HTMLInputElement, useAdvancedSearc
 }
 
 // The Quantleaf Query API call
-const getAndDrawResult = async (searchField:HTMLInputElement,input: string = '') => {
+const getAndDrawResult = async (searchField: HTMLInputElement, input: string = '') => {
     await apiKeySetup;
-    
-    const resp = input.length > maxSearchLength ? undefined :  await translate(input, schemaObjects, { query: {}, suggest: { limit: 300 } }, { nestedConditions: false, negativeConditions: true, concurrencySize: 1 })
+    const suggestOffset = searchField.selectionStart != null ?  Math.max(searchField.selectionStart - 1,0) : input.length;
+    const resp = input.length > maxSearchLength ? undefined : await translate(input, schemaObjects, { query: {}, suggest: { limit: 300, offset: suggestOffset } }, { nestedConditions: false, negativeConditions: true, concurrencySize: 1 })
     handleResponse(searchField, input, resp);
 }
 
-const calculateSuggestions = () => 
-{
+const calculateSuggestions = () => {
     const suggestionsLimit = 13;
     const suggestObjects = sess.lastResponse?.suggest;
     const limitSuggestions = showAllSuggestions && suggestObjects ? suggestObjects.length : suggestionsLimit
     let suggestions = suggestObjects?.map(s => s.text.trim()).slice(0, Math.min(suggestObjects.length, limitSuggestions)).join(', ');
-    if(suggestObjects && suggestObjects?.length > suggestionsLimit)
-    {
+    if (suggestObjects && suggestObjects?.length > suggestionsLimit) {
         suggestions += ', ...';
 
     }
@@ -533,7 +515,7 @@ const noResults = 'No results';
 // Injects advanced search UI as the first result element
 
 
-const handleResponse = (searchField:HTMLInputElement, input: string, responseBody?: QueryResponse) => {
+const handleResponse = (searchField: HTMLInputElement, input: string, responseBody?: QueryResponse) => {
 
     input as any;
 
@@ -543,8 +525,7 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
     // Suggestions
     printSuggestions();
 
-    if(input.length > maxSearchLength)
-    {
+    if (input.length > maxSearchLength) {
         resultPrint({
             query: noResults,
             errors: ['Too long search. If you would like to to more advanced searches you can contact us from the "Help" page']
@@ -558,29 +539,27 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
         drawResults(searchField);
         return;
     }
-  
+
     // Assume unknown serve a purpose
-    if(sess.lastResponse && sess.lastResponse.unknown)
-    {
+    if (sess.lastResponse && sess.lastResponse.unknown) {
         const unknownAsQuery = parseUnknownQuery(input, sess.lastResponse.unknown);
 
         // Merge in unknown query if applicable, we only check top level for now
-        if(unknownAsQuery && sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length == 0 )
-        {
-            sess.lastResponse.query =  [{
+        if (unknownAsQuery && sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length == 0) {
+            sess.lastResponse.query = [{
                 from: [generalSchemaKey],
                 condition: unknownAsQuery
             }]
 
         }
-        else if (sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length > 0 &&  unknownAsQuery) {
+        else if (sess.lastResponse && sess.lastResponse.query && sess.lastResponse.query.length > 0 && unknownAsQuery) {
             if ((sess.lastResponse.query[0].condition as ConditionAnd).and) {
                 const and = sess.lastResponse.query[0].condition as ConditionAnd;
                 if (!and.and.find((x) => (x as ConditionCompare).compare?.key == allFieldsKey)) {
                     // Add the implicit query
                     and.and.push(unknownAsQuery);
                 }
-    
+
             }
             else if ((sess.lastResponse.query[0].condition as ConditionCompare).compare) {
                 const comp = sess.lastResponse.query[0].condition as ConditionCompare;
@@ -594,14 +573,14 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
                     sess.lastResponse.query[0].condition = mergedCondition;
                 }
             }
-            
+
         }
 
 
     }
-    
 
-   
+
+
     // Readable
     sess.lastReadableQuery = sess.lastResponse ? parseReadableQuery(sess.lastResponse) : undefined;
     if (sess.lastReadableQuery)
@@ -610,9 +589,9 @@ const handleResponse = (searchField:HTMLInputElement, input: string, responseBod
         noResultsPrint()
 }
 const resultPrint = (readable: ReadableRepresentation) => {
-    if(title && readable.from)
+    if (title && readable.from)
         title.innerHTML = readable.from;
-    textContainer.innerHTML = `<code style="font-size:14px">${readable.query}</code></br></br>${readable.errors.map((x)=> '<span style="color:red">' + x + '</span>').join('</br>')}`;
+    textContainer.innerHTML = `<code style="font-size:14px">${readable.query}</code></br></br>${readable.errors.map((x) => '<span style="color:red">' + x + '</span>').join('</br>')}`;
 }
 
 
@@ -620,17 +599,15 @@ const noResultsPrint = () => {
     textContainer.innerHTML = noResults;
 }
 
-var _advancedSearchAutoCompleteContainer:any = null;
-const getAdvancedSearchAutoCompleteContainer = (searchField:HTMLInputElement):HTMLElement =>
-{
-   
-    if(!_advancedSearchAutoCompleteContainer)
-    {
+var _advancedSearchAutoCompleteContainer: any = null;
+const getAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): HTMLElement => {
+
+    if (!_advancedSearchAutoCompleteContainer) {
 
         _advancedSearchAutoCompleteContainer = document.createElement('div');
         _advancedSearchAutoCompleteContainer.addEventListener("click", (event) => {
             stopEvent(event);
-            navigateSearch(lastSelectedSearchField,true);
+            navigateSearch(lastSelectedSearchField, true);
         });
     }
 
@@ -639,23 +616,19 @@ const getAdvancedSearchAutoCompleteContainer = (searchField:HTMLInputElement):HT
     // Make sure it is last in the ist of the parent
     // &&
     // modify style of lb parent so its position is relative to fix som issues on /search
-    
-    if(lb?.parentElement)
-    {
+
+    if (lb?.parentElement) {
 
         lb.parentElement.style.position = 'relative';
         let index = -1;
         for (let i = 0; i < lb.parentElement.children.length; i++) {
-            if(lb.parentElement.children[i] == _advancedSearchAutoCompleteContainer)
-            {
+            if (lb.parentElement.children[i] == _advancedSearchAutoCompleteContainer) {
                 index = i;
             }
-            
+
         }
-        if(index != lb.parentElement.children.length -1)
-        {
-            if(index != -1)
-            {
+        if (index != lb.parentElement.children.length - 1) {
+            if (index != -1) {
                 lb.parentElement.removeChild(_advancedSearchAutoCompleteContainer);
             }
         }
@@ -667,159 +640,139 @@ const getAdvancedSearchAutoCompleteContainer = (searchField:HTMLInputElement):HT
 
 
 
-const updateAutoCompleteStyle = () => 
-{
- 
+const updateAutoCompleteStyle = () => {
+
     const def = getDefaultAdvancedSearchAutoCompleteContainer(lastSelectedSearchField);
     const defaultResults = getDefaultResults(lastSelectedSearchField);
-    if(def && def instanceof HTMLElement)
+    if (def && def instanceof HTMLElement)
         def.style.boxShadow = searchResultBoxShadow;
 
 
     const container = getAdvancedSearchAutoCompleteContainer(lastSelectedSearchField);
-    let calcStyleHeight:string = '0px';
-    let cStyle:any = null;
-    if(def)
-    {
+    let calcStyleHeight: string = '0px';
+    let cStyle: any = null;
+    if (def) {
         cStyle = window.getComputedStyle(def);
-        if(cStyle.display != 'none')
+        if (cStyle.display != 'none')
             calcStyleHeight = cStyle.height;
     }
-    advancedSearchResultContainer.style.boxShadow = defaultResults?.length > 0 ?  searchResultBoxShadow : 'none';
+    advancedSearchResultContainer.style.boxShadow = defaultResults?.length > 0 ? searchResultBoxShadow : 'none';
     advancedSearchResultContainer.style.color = textColor;
 
-    if(suggestionViewToggleFocused)
-    {
+    if (suggestionViewToggleFocused) {
         suggestionViewToggle.style.backgroundColor = focusedColor;
         suggestionViewToggle.style.color = focusedTextColor;
 
 
     }
-    else 
-    {
-    
+    else {
+
         suggestionViewToggle.style.backgroundColor = backgroundColor;
         suggestionViewToggle.style.color = textColor;
 
     }
 
-    if(advancedSearchResultFocused && !suggestionViewToggleFocused)
-    {
+    if (advancedSearchResultFocused && !suggestionViewToggleFocused) {
         advancedSearchResultContainer.style.backgroundColor = focusedColor;
         advancedSearchResultContainer.style.color = focusedTextColor;
 
     }
-    else 
-    {
+    else {
         advancedSearchResultContainer.style.backgroundColor = backgroundColor;
         advancedSearchResultContainer.style.color = textColor;
 
     }
-    if(defaultResults?.length > 0 && calcStyleHeight)
-    {
-        container.style.top = `calc(100% + ${calcStyleHeight})`; 
+    if (defaultResults?.length > 0 && calcStyleHeight) {
+        container.style.top = `calc(100% + ${calcStyleHeight})`;
     }
-    else
-    {
+    else {
         container.style.top = '100%';
     }
-    container.style.position = "absolute" 
+    container.style.position = "absolute"
 
-    
-    
 
-    
+
+
+
 }
 
-const whenFormParent = (element:HTMLElement) => 
-{
+const whenFormParent = (element: HTMLElement) => {
     let curr = element;
-    while(curr && curr.tagName != 'FORM')
-    {
-        if(!curr.parentElement)
+    while (curr && curr.tagName != 'FORM') {
+        if (!curr.parentElement)
             return undefined;
-        curr = curr.parentElement ;
+        curr = curr.parentElement;
     }
     return curr;
 }
-const getDefaultAdvancedSearchAutoCompleteContainer = (searchField:HTMLInputElement):HTMLElement =>
-{
-    
-    let el =  whenFormParent(searchField)?.querySelector('ul[role="listbox"]')?.parentElement;
-    if(!el)
-    {
+const getDefaultAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): HTMLElement => {
+
+    let el = whenFormParent(searchField)?.querySelector('ul[role="listbox"]')?.parentElement;
+    if (!el) {
         el = searchField?.parentElement as HTMLElement;
     };
     return el as HTMLElement;
 }
 
-const getDefaultResults = (searchField:HTMLInputElement):HTMLLIElement[] => 
-{
+const getDefaultResults = (searchField: HTMLInputElement): HTMLLIElement[] => {
     const el = getDefaultAdvancedSearchAutoCompleteList(searchField);
-    if(!el)
+    if (!el)
         return [];
-    const ret:HTMLLIElement[] = []
+    const ret: HTMLLIElement[] = []
     const liElements = el.querySelectorAll('li:not(.d-none)');
 
     for (let i = 0; i < liElements.length; i++) {
-       ret.push(liElements[i] as HTMLLIElement);
-        
+        ret.push(liElements[i] as HTMLLIElement);
+
     }
 
     return ret;
 }
 
-const hasAdvancedResultsToShow = ():boolean => 
-{
-    if( !sess.parsedQuery || Object.keys(sess.parsedQuery as any).length == 0)
+const hasAdvancedResultsToShow = (): boolean => {
+    if (!sess.parsedQuery || Object.keys(sess.parsedQuery as any).length == 0)
         return false;
     return true;
 }
 
-const getDefaultAdvancedSearchAutoCompleteList = (searchField:HTMLElement):HTMLElement =>
-{
-    return  whenFormParent(searchField)?.querySelector('ul[role="listbox"]') as HTMLElement 
+const getDefaultAdvancedSearchAutoCompleteList = (searchField: HTMLElement): HTMLElement => {
+    return whenFormParent(searchField)?.querySelector('ul[role="listbox"]') as HTMLElement
 }
 
-const drawResults = (searchField:HTMLInputElement, force?:boolean) => {
+const drawResults = (searchField: HTMLInputElement, force?: boolean) => {
 
-    if(!hasAdvancedResultsToShow() && !lastSuggestions && !force)
-    {
+    if (!hasAdvancedResultsToShow() && !lastSuggestions && !force) {
         ejectResult(searchField);
         return;
     }
 
     const listOutlet = getAdvancedSearchAutoCompleteContainer(searchField);
-    if(listOutlet)
-    {
+    if (listOutlet) {
         if (listOutlet.firstElementChild == advancedSearchResultContainer)
             listOutlet.removeChild(advancedSearchResultContainer);
-        if(listOutlet.lastElementChild != advancedSearchResultContainer)
+        if (listOutlet.lastElementChild != advancedSearchResultContainer)
             listOutlet.appendChild(advancedSearchResultContainer);
-        
+
         listOutlet.style.width = '100%'; // Fixes some visual issues
 
     }
 }
-const unfocusAdvancedSearchField = () =>
-{
+const unfocusAdvancedSearchField = () => {
     advancedSearchResultFocused = false;
     suggestionViewToggleFocused = false;
 }
-const ejectResult = (searchField:HTMLInputElement) => 
-{
- 
+const ejectResult = (searchField: HTMLInputElement) => {
+
     const listOutlet = getAdvancedSearchAutoCompleteContainer(searchField);
     unfocusAdvancedSearchField();
-    
-    if(listOutlet)
-    {
+
+    if (listOutlet) {
         if (listOutlet.firstElementChild == advancedSearchResultContainer)
             listOutlet.removeChild(advancedSearchResultContainer);
     }
 
 }
-const insertText = (searchField:HTMLInputElement, text?: string) => {
+const insertText = (searchField: HTMLInputElement, text?: string) => {
     /*if (lastSearchField) {
         (lastSearchField as HTMLInputElement).focus();
         if (clear)
@@ -828,10 +781,9 @@ const insertText = (searchField:HTMLInputElement, text?: string) => {
         lastSearchField.dispatchEvent(new Event('change', { bubbles: true })); // usually not needed
     }*/
 
-    if(searchField)
-    {
-        if(text != undefined)
-        searchField.value = text;
+    if (searchField) {
+        if (text != undefined)
+            searchField.value = text;
 
     }
 
@@ -845,17 +797,17 @@ const searchFieldTextFromParsedQuery = (parsedQuery?: ParsedQuery) => {
 
 const searchQueryParamsByKey = (parsedQuery?: ParsedQuery): Map<string, string> => {
     const currentQueryParams = new Map<string, string>();
-  /*  const currentUrl = new URL(window.location.href);
-    if(parsedQuery?.queryParams && !parsedQuery?.queryParams[resultTypeQueryKey]) // if type is determined by query, dont preserve any parameters
-    {
-        currentUrl.searchParams.forEach((v,k)=> // preserve some params (from user UI input)
-        {
-            if(k != resultTypeQueryKey)  // Only preserve prior result type query params
-                return; 
-            currentQueryParams.set(k,v);
-        }); 
-    }*/
-    
+    /*  const currentUrl = new URL(window.location.href);
+      if(parsedQuery?.queryParams && !parsedQuery?.queryParams[resultTypeQueryKey]) // if type is determined by query, dont preserve any parameters
+      {
+          currentUrl.searchParams.forEach((v,k)=> // preserve some params (from user UI input)
+          {
+              if(k != resultTypeQueryKey)  // Only preserve prior result type query params
+                  return; 
+              currentQueryParams.set(k,v);
+          }); 
+      }*/
+
     if (!parsedQuery?.queryParams)
         return currentQueryParams;
     const groups = new Map<string, string[]>();
@@ -885,8 +837,8 @@ const searchQueryParamsFromParsedQuery = (parsedQuery?: ParsedQuery) => {
     return par;
 }
 
-const buildUrlFromQuery = (searchField:HTMLInputElement, parsedQuery: ParsedQuery)  => `https://${window.location.hostname}${urlSearchPath}?${searchQueryParamsFromParsedQuery(parsedQuery)}&${redirectFromQueryKey}=${encodeURIComponent(searchField?.value)}`
-const navigateToQuery = (searchField:HTMLInputElement,parsedQuery: ParsedQuery) => {
+const buildUrlFromQuery = (searchField: HTMLInputElement, parsedQuery: ParsedQuery) => `https://${window.location.hostname}${urlSearchPath}?${searchQueryParamsFromParsedQuery(parsedQuery)}&${redirectFromQueryKey}=${encodeURIComponent(searchField?.value)}`
+const navigateToQuery = (searchField: HTMLInputElement, parsedQuery: ParsedQuery) => {
     window.location.href = buildUrlFromQuery(searchField, parsedQuery);
 
 }
@@ -897,55 +849,48 @@ const printSuggestions = () => {
 
     calculateSuggestions();
     suggestionViewToggle.innerHTML = showAllSuggestions ? hideAllSuggetsionsHTML : showAllSuggestionsHTML;
-    
-    if (lastSuggestions)
-    {
+
+    if (lastSuggestions) {
         suggestionsContainer.innerHTML = `Suggestions</br><i>${lastSuggestions}</i>`;
-       /*
-        try {
-            suggestionsWrapper.removeChild(suggestionViewToggle)
-            
-        } catch (error) {
-            
-        }
-        if(limitedSuggestions)
-                suggestionsWrapper.appendChild(suggestionViewToggle)*/
+        /*
+         try {
+             suggestionsWrapper.removeChild(suggestionViewToggle)
+             
+         } catch (error) {
+             
+         }
+         if(limitedSuggestions)
+                 suggestionsWrapper.appendChild(suggestionViewToggle)*/
 
     }
-    else
-    {
-      /*  try {
-            suggestionsWrapper.removeChild(suggestionViewToggle)
-
-        } catch (error) {
-            
-        }*/
+    else {
+        /*  try {
+              suggestionsWrapper.removeChild(suggestionViewToggle)
+  
+          } catch (error) {
+              
+          }*/
         suggestionsContainer.innerHTML = `<i>No suggestions available</i>`;
 
     }
 }
 
-const eliminateDoubleNot = (condition: (ConditionAnd | ConditionNot | ConditionCompare)) =>
-{
+const eliminateDoubleNot = (condition: (ConditionAnd | ConditionNot | ConditionCompare)) => {
     // We do not want 'NOT a != b', but in this case, a = b
-    if((condition as ConditionAnd).and)
-    {
-        (condition as ConditionAnd).and.forEach((a)=>
-        {
-            eliminateDoubleNot(a as (ConditionAnd | ConditionNot | ConditionCompare));
+    if ((condition as ConditionAnd).and) {
+        (condition as ConditionAnd).and.forEach((a) => {
+            eliminateDoubleNot(a as (ConditionAnd | ConditionNot | ConditionCompare));
         })
     }
-    else if((condition as ConditionNot).not)
-    {
+    else if ((condition as ConditionNot).not) {
         const not = (condition as ConditionNot);
         const comp = (not.not as ConditionCompare);
 
-        if(comp.compare.neq)
-        {
+        if (comp.compare.neq) {
             comp.compare.eq = comp.compare.neq;
             delete comp.compare.neq;
-            delete condition['not'];     
-            Object.assign(condition,comp);
+            delete condition['not'];
+            Object.assign(condition, comp);
 
         }
     }
@@ -954,8 +899,8 @@ const eliminateDoubleNot = (condition: (ConditionAnd | ConditionNot | Condition
 // Readable representation of the query object
 const parseReadableQuery = (response: QueryResponse): ReadableRepresentation | undefined => {
     let condition: ConditionElement = null as any;
-    let from:string = '';
-    let schemaKey:string = '';
+    let from: string = '';
+    let schemaKey: string = '';
     if (response?.query && response.query.length > 0) {
         condition = response.query[0].condition;
         const froms = response.query[0].from;
@@ -964,20 +909,18 @@ const parseReadableQuery = (response: QueryResponse): ReadableRepresentation | u
         from = firstDescription(generatedSchemas.find(x => x.name.key == schemaKey)?.name.description);
     }
 
-    if(!condition)
-    {
+    if (!condition) {
         return undefined;
     }
-    const status:QueryStatus = {
-        faults : []
+    const status: QueryStatus = {
+        faults: []
     }
-    eliminateDoubleNot(condition as (ConditionAnd | ConditionNot | ConditionCompare));
-    let ordinaryReadableQuery = parseReadableOrdinaryQuery(schemaKey, status, condition as (ConditionAnd | ConditionNot | ConditionCompare));
-    if(ordinaryReadableQuery && ordinaryReadableQuery.startsWith('(') && ordinaryReadableQuery.endsWith(')'))
-        ordinaryReadableQuery = ordinaryReadableQuery.substring(1,ordinaryReadableQuery.length -1);
+    eliminateDoubleNot(condition as (ConditionAnd | ConditionNot | ConditionCompare));
+    let ordinaryReadableQuery = parseReadableOrdinaryQuery(schemaKey, status, condition as (ConditionAnd | ConditionNot | ConditionCompare));
+    if (ordinaryReadableQuery && ordinaryReadableQuery.startsWith('(') && ordinaryReadableQuery.endsWith(')'))
+        ordinaryReadableQuery = ordinaryReadableQuery.substring(1, ordinaryReadableQuery.length - 1);
     const ret: string[] = [];
-    if (ordinaryReadableQuery)
-    {
+    if (ordinaryReadableQuery) {
         ret.push(ordinaryReadableQuery);
 
 
@@ -993,8 +936,8 @@ const parseReadableQuery = (response: QueryResponse): ReadableRepresentation | u
 const parseUnknownQuery = (input: string, unknown?: Unknown[]): ConditionCompare | undefined => {
     if (!unknown)
         return undefined;
-    let startUnknown:ConditionCompare | undefined = undefined;
-    let endUnkown:ConditionCompare | undefined = undefined;
+    let startUnknown: ConditionCompare | undefined = undefined;
+    let endUnkown: ConditionCompare | undefined = undefined;
 
     for (let i = 0; i < unknown.length; i++) {
         const u = unknown[i];
@@ -1020,7 +963,7 @@ const parseUnknownQuery = (input: string, unknown?: Unknown[]): ConditionCompare
             if (value.startsWith("\"") && value.endsWith("\"")) {
                 value = value.substring(1, value.length - 1);
             }
-            endUnkown =  {
+            endUnkown = {
                 compare:
                 {
                     key: allFieldsKey,
@@ -1028,13 +971,12 @@ const parseUnknownQuery = (input: string, unknown?: Unknown[]): ConditionCompare
                 }
             }
         }
-        if(startUnknown && endUnkown)
+        if (startUnknown && endUnkown)
             break;
     }
     let unknownToUse = startUnknown;
-    if(endUnkown?.compare?.eq)
-    {
-        if(!unknownToUse || !unknownToUse.compare.eq)
+    if (endUnkown?.compare?.eq) {
+        if (!unknownToUse || !unknownToUse.compare.eq)
             unknownToUse = endUnkown;
         else //combine
         {
@@ -1046,160 +988,149 @@ const parseUnknownQuery = (input: string, unknown?: Unknown[]): ConditionCompare
 }
 
 
-const indent = (text:string, depth:number = 0) =>
-{
+const indent = (text: string, depth: number = 0) => {
     const textLines = text.split("</br>");
-    const builder:string[] = [];
+    const builder: string[] = [];
     for (let i = 0; i < depth; i++) {
         builder.push('&ensp;&ensp;&ensp;&ensp;')
     }
     const pad = builder.join('');
-    return textLines.map(x=>pad+x).join('</br>');
+    return textLines.map(x => pad + x).join('</br>');
 }
 
-const strong = (text:string) => '<strong>' + text+ '</strong>'
-const pad = (text:string) => ' ' + text+ ' '
+const strong = (text: string) => '<strong>' + text + '</strong>'
+const pad = (text: string) => ' ' + text + ' '
 //const italic = (text:string) => '<i>' + text+ '</i>'
-const wrapJoin = (arr:string[],delimiter:string) => delimiter.length == 0 ? arr.join('</br>') :  arr.join('</br>'+ delimiter+'</br>')
+const wrapJoin = (arr: string[], delimiter: string) => delimiter.length == 0 ? arr.join('</br>') : arr.join('</br>' + delimiter + '</br>')
 
-const conditionsReadable = (schemaKey:string, status:QueryStatus, condition:(ConditionAnd), depth) =>
-{
+const conditionsReadable = (schemaKey: string, status: QueryStatus, condition: (ConditionAnd), depth) => {
     let delimiter = '';
     let arr = ((condition as ConditionAnd).and);
-    if(!arr)
+    if (!arr)
         return null;
-    
+
     const join: string[] = [];
     arr.forEach((element) => {
-        const compare = parseReadableOrdinaryQuery(schemaKey,status, element as (ConditionAnd | ConditionCompare), 1);
+        const compare = parseReadableOrdinaryQuery(schemaKey, status, element as (ConditionAnd | ConditionCompare), 1);
         if (compare)
-        join.push(compare);
+            join.push(compare);
     });
-    return indent(join.length > 1 ? `${wrapJoin(join,delimiter)}` : join[0],depth);
+    return indent(join.length > 1 ? `${wrapJoin(join, delimiter)}` : join[0], depth);
 }
 
-const parseReadableOrdinaryQuery = (schemaKey:string, status:QueryStatus, condition: (ConditionAnd | ConditionCompare | ConditionNot ), depth = 0):string => {
+const parseReadableOrdinaryQuery = (schemaKey: string, status: QueryStatus, condition: (ConditionAnd | ConditionCompare | ConditionNot), depth = 0): string => {
 
-    if(!condition)
+    if (!condition)
         return '';
-    const fromAnd = conditionsReadable(schemaKey,status,condition as (ConditionAnd), depth);
-    if(fromAnd)
+    const fromAnd = conditionsReadable(schemaKey, status, condition as (ConditionAnd), depth);
+    if (fromAnd)
         return fromAnd;
-    
+
 
     if ((condition as ConditionCompare).compare) {
         const compElements: string[] = [];
-        const comp = (condition as ConditionCompare).compare;        
+        const comp = (condition as ConditionCompare).compare;
         compElements.push(firstDescription(fieldsByKey.get(schemaKey)?.get(comp.key)?.description));
         if (comp.eq != undefined) {
-            compElements.push(pad(strong('=')) + formatValue(schemaKey,comp.key, comp.eq,false));
+            compElements.push(pad(strong('=')) + formatValue(schemaKey, comp.key, comp.eq, false));
         }
         else if (comp.gt != undefined) {
-            compElements.push(pad(strong('>')) + formatValue(schemaKey,comp.key, comp.gt,false));
+            compElements.push(pad(strong('>')) + formatValue(schemaKey, comp.key, comp.gt, false));
         }
         else if (comp.gte != undefined) {
-            compElements.push(pad(strong('≥')) + formatValue(schemaKey,comp.key, comp.gte,false));
+            compElements.push(pad(strong('≥')) + formatValue(schemaKey, comp.key, comp.gte, false));
         }
         else if (comp.lt != undefined) {
-            compElements.push(pad(strong('<')) + formatValue(schemaKey,comp.key, comp.lt,false));
+            compElements.push(pad(strong('<')) + formatValue(schemaKey, comp.key, comp.lt, false));
         }
         else if (comp.lte != undefined) {
-            compElements.push(pad(strong('≤')) + formatValue(schemaKey,comp.key, comp.lte,false));
+            compElements.push(pad(strong('≤')) + formatValue(schemaKey, comp.key, comp.lte, false));
         }
         else if (comp.neq != undefined) {
-            compElements.push(pad(strong('≠')) + formatValue(schemaKey,comp.key, comp.neq,false));
+            compElements.push(pad(strong('≠')) + formatValue(schemaKey, comp.key, comp.neq, false));
         }
-    
+
         const conditionReadable = compElements.join('');
         return conditionReadable;
     }
-    else if((condition as ConditionNot).not) {
-        return strong('NOT') + ' ' + parseReadableOrdinaryQuery(schemaKey,status,(condition as ConditionNot).not as (ConditionAnd | ConditionCompare))
+    else if ((condition as ConditionNot).not) {
+        return strong('NOT') + ' ' + parseReadableOrdinaryQuery(schemaKey, status, (condition as ConditionNot).not as (ConditionAnd | ConditionCompare))
     }
     return '';
 }
 
-const  isObject = (item) => {
+const isObject = (item) => {
     return (item && typeof item === 'object' && !Array.isArray(item));
 }
-  
+
 const mergeDeep = (target, source) => {
     let output = Object.assign({}, target);
     if (isObject(target) && isObject(source)) {
-      Object.keys(source).forEach(key => {
-        if (isObject(source[key])) {
-          if (!(key in target))
-            Object.assign(output, { [key]: source[key] });
-          else
-            output[key] = mergeDeep(target[key], source[key]);
-        } else {
-          Object.assign(output, { [key]: source[key] });
-        }
-      });
+        Object.keys(source).forEach(key => {
+            if (isObject(source[key])) {
+                if (!(key in target))
+                    Object.assign(output, { [key]: source[key] });
+                else
+                    output[key] = mergeDeep(target[key], source[key]);
+            } else {
+                Object.assign(output, { [key]: source[key] });
+            }
+        });
     }
     return output;
 }
 
-const domainIsGroupable = (domain:any) => 
-{
-    return domain == StandardDomain.NUMBER || domain == StandardDomain.DATE 
+const domainIsGroupable = (domain: any) => {
+    return domain == StandardDomain.NUMBER || domain == StandardDomain.DATE
 }
 
-const parseGroupNumberConditions = (schemaKey:string, condition:(ConditionAnd  | ConditionCompare | ConditionNot )) => 
-{
-    if((condition as ConditionCompare).compare || (condition as ConditionNot).not)
+const parseGroupNumberConditions = (schemaKey: string, condition: (ConditionAnd | ConditionCompare | ConditionNot)) => {
+    if ((condition as ConditionCompare).compare || (condition as ConditionNot).not)
         return condition;
-    
-    const groupMap:Map<string,ConditionCompare[]> = new Map();
-    const newAnd:ConditionCompare[] = [];
+
+    const groupMap: Map<string, ConditionCompare[]> = new Map();
+    const newAnd: ConditionCompare[] = [];
     const and = (condition as ConditionAnd).and;
-    and?.forEach((a)=>
-    {
+    and?.forEach((a) => {
         const cc = a as ConditionCompare;
         const comp = cc.compare;
-        if(fieldsByKey.has(comp.key) && domainIsGroupable(fieldsByKey.get(schemaKey)?.get(comp.key)?.domain))
-        {
+        if (fieldsByKey.has(comp.key) && domainIsGroupable(fieldsByKey.get(schemaKey)?.get(comp.key)?.domain)) {
             let arr = groupMap.get(comp.key);
-            if(!arr)
-            {
+            if (!arr) {
                 arr = [];
-                groupMap.set(comp.key,arr);
+                groupMap.set(comp.key, arr);
             }
             arr.push(cc);
         }
-        else 
-        {
+        else {
             newAnd.push(cc);
         }
     });
-    groupMap.forEach((group)=>
-    {
+    groupMap.forEach((group) => {
         let merge = group[0];
         for (let i = 1; i < group.length; i++) {
-            merge = mergeDeep(merge,group[i])
-            
+            merge = mergeDeep(merge, group[i])
+
         }
         newAnd.push(merge);
     });
     (condition as ConditionAnd).and = newAnd;
-    console.log('grouped', JSON.stringify(condition));
     return condition;
 
 }
-const parseQueryResponse = (schemaKey:string, condition:(ConditionAnd  | ConditionCompare | ConditionNot ), errorMessages:string[]): ParsedQuery => {
+const parseQueryResponse = (schemaKey: string, condition: (ConditionAnd | ConditionCompare | ConditionNot), errorMessages: string[]): ParsedQuery => {
     if (!condition)
         return {};
 
-    const ordinaryConditions = parseOrdinaryConditions(schemaKey,parseGroupNumberConditions(schemaKey, condition),errorMessages);
+    const ordinaryConditions = parseOrdinaryConditions(schemaKey, parseGroupNumberConditions(schemaKey, condition), errorMessages);
 
     return ordinaryConditions;
 }
 
 
-const comparatorSymbolNonText = (comp:Compare) => 
-{
+const comparatorSymbolNonText = (comp: Compare) => {
     if (comp.gt != undefined) {
-       return '>'
+        return '>'
     }
     if (comp.gte != undefined) {
         return '>='
@@ -1208,41 +1139,40 @@ const comparatorSymbolNonText = (comp:Compare) =>
         return '<'
     }
     if (comp.lte != undefined) {
-       return '<='
+        return '<='
     }
     return '';
 }
-const compareValue = (comp:Compare) => 
-{
-    if (comp.eq != undefined) 
+const compareValue = (comp: Compare) => {
+    if (comp.eq != undefined)
         return comp.eq
-    if (comp.gt != undefined) 
+    if (comp.gt != undefined)
         return comp.gt
-     
-     if (comp.gte != undefined) {
+
+    if (comp.gte != undefined) {
         return comp.gte
-     }
-     else if (comp.lt != undefined) {
+    }
+    else if (comp.lt != undefined) {
         return comp.lt
-     }
-     else if (comp.lte != undefined) {
+    }
+    else if (comp.lte != undefined) {
         return comp.lte
-     }
-     else if (comp.neq != undefined) {
+    }
+    else if (comp.neq != undefined) {
         return comp.neq
-     }
-     return  undefined;
+    }
+    return undefined;
 }
 
-const parseOrdinaryConditions = (schemaKey:string, condition: (ConditionAnd | ConditionCompare | ConditionNot),errorMessages:string[]): ParsedQuery => {
+const parseOrdinaryConditions = (schemaKey: string, condition: (ConditionAnd | ConditionCompare | ConditionNot), errorMessages: string[]): ParsedQuery => {
     if (!condition)
         return {};
     if ((condition as ConditionAnd).and) {
-        const queryParams:QueryParam[] = [];
+        const queryParams: QueryParam[] = [];
         (condition as ConditionAnd).and.forEach((element) => {
             const parseResult = parseQueryResponse(schemaKey, element as (ConditionAnd | ConditionCompare), errorMessages);
             if (parseResult.queryParams)
-                queryParams.push(...parseResult.queryParams)   
+                queryParams.push(...parseResult.queryParams)
         });
         return {
             queryParams: queryParams
@@ -1250,24 +1180,22 @@ const parseOrdinaryConditions = (schemaKey:string, condition: (ConditionAnd | Co
     }
     else if ((condition as ConditionNot).not) {
         const nested = parseOrdinaryConditions(schemaKey, ((condition as ConditionNot).not) as ConditionCompare, errorMessages);
-        nested.queryParams?.forEach((param)=>
-        {
-            param.value = '-'+param.value; 
+        nested.queryParams?.forEach((param) => {
+            param.value = '-' + param.value;
         });
         return nested;
     }
     else if ((condition as ConditionCompare).compare) {
         const comp = (condition as ConditionCompare).compare;
         {
-            if(Object.keys(comp).length == 2)
-            {
-                const isTextKey = comp.key == allFieldsKey || comp.key == allFieldsExactMatchKey;
-                return { 
-    
+            if (Object.keys(comp).length == 2) {
+                const isTextKey = comp.key == allFieldsKey || comp.key == allFieldsExactMatchKey;
+                return {
+
                     queryParams: [
                         {
                             key: querQueryKey,
-                            value:  (comp.neq != undefined ? (isTextKey ? 'NOT ' : '-'):'') + (isTextKey ? '' : String(comp.key)+ ':') + comparatorSymbolNonText(comp) +  formatValue(schemaKey,comp.key,compareValue(comp),!isTextKey)
+                            value: (comp.neq != undefined ? (isTextKey ? 'NOT ' : '-') : '') + (isTextKey ? '' : String(comp.key) + ':') + comparatorSymbolNonText(comp) + formatValue(schemaKey, comp.key, compareValue(comp), !isTextKey)
                         }
                     ]
                 }
@@ -1277,25 +1205,24 @@ const parseOrdinaryConditions = (schemaKey:string, condition: (ConditionAnd | Co
                 let from = '*';
                 let to = '*';
 
-                if(comp.lte != undefined)
-                    to = formatValue(schemaKey,comp.key,comp.lte);
-                if(comp.lt != undefined)
-                    to = formatValue(schemaKey,comp.key,comp.lt);
-                if(comp.gte != undefined)
-                    from = formatValue(schemaKey,comp.key,comp.gte);
-                if(comp.gt != undefined)
-                    from = formatValue(schemaKey,comp.key,comp.gt);
-                if(comp.eq != undefined)
-                {
+                if (comp.lte != undefined)
+                    to = formatValue(schemaKey, comp.key, comp.lte);
+                if (comp.lt != undefined)
+                    to = formatValue(schemaKey, comp.key, comp.lt);
+                if (comp.gte != undefined)
+                    from = formatValue(schemaKey, comp.key, comp.gte);
+                if (comp.gt != undefined)
+                    from = formatValue(schemaKey, comp.key, comp.gt);
+                if (comp.eq != undefined) {
                     // comp eq outside range, well just ignore it?
                 }
 
-                return { 
-                
+                return {
+
                     queryParams: [
                         {
                             key: 'q',
-                            value:  `${comp.key}:${from}..${to}`
+                            value: `${comp.key}:${from}..${to}`
                         }
                     ]
                 }
@@ -1322,39 +1249,37 @@ const formatDate = (ms) => {
 
     var day = date.getDate().toString();
     day = day.length > 1 ? day : '0' + day;
-    return year +  '-' + month + '-' + day;
+    return year + '-' + month + '-' + day;
 
 }
-const escape = (text:string) => '"' + text + '"'
+const escape = (text: string) => '"' + text + '"'
 
-const formatValue = (schemaKey:string, key:string, value:any,asQueryValue = true) => {
+const formatValue = (schemaKey: string, key: string, value: any, asQueryValue = true) => {
     const field = fieldsByKey.get(schemaKey)?.get(key) as Field;
-    if(!field || !field.domain)
+    if (!field || !field.domain)
         throw new Error('Field missing');
     let ret = '';
 
     if (field.domain == 'DATE') {
         ret = formatDate(value);
         return ret;
-        
+
     }
     else if (typeof field.domain != 'string' && field.domain[value]) // Enum domain!
     {
         let desc = firstDescription(field.domain[value]);
         if (desc && !asQueryValue)
             ret = desc;
-        else 
+        else
             ret = value;
     }
-    else 
-    {
+    else {
         ret = value;
-        if(userNameFields.has(key) && ret == 'me')
+        if (userNameFields.has(key) && ret == 'me')
             ret = '@me';
     }
 
-    if(asQueryValue && (key == allFieldsExactMatchKey ||  /\s/g.test(ret as string)))
-    {
+    if (asQueryValue && (key == allFieldsExactMatchKey || /\s/g.test(ret as string))) {
         ret = escape(ret);
     }
     return ret;
@@ -1371,188 +1296,202 @@ const firstDescription = (desc) => {
     }
     return '';
 }
-const stopEvent = (event) => 
-{
+const stopEvent = (event) => {
     event.cancelBubble = true;
     event.stopImmediatePropagation();
     event.stopPropagation();
     event.preventDefault();
 }
 
+const findSearchFields = (): HTMLInputElement[] => {
+    const s1 = document.querySelector('header form[role="search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
+    const s2 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
+    const s3 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
+    const s: HTMLInputElement[] = [];
+    if (s1)
+        s.push(s1);
+    if (s2)
+        s.push(s2);
+    if (s3 && !s2)
+        s.push(s3);
+    return s;
+}
+
+const getAndDrawResultWithLoader = async (searchField:HTMLInputElement) =>
+{
+    const newValue = searchField?.value;
+    const newSelectionStart = searchField.selectionStart;
+    await load;
+    if (newValue != searchField?.value)
+        return;
+    if (newValue == lastSearch && newSelectionStart == lastSelectionStart)
+        return;
+        
+    lastSelectionStart = newSelectionStart as number;
+    lastSearch = newValue;
+    unfocusAdvancedSearchField();
+
+    hasTypedAnything = true;
+    updateAutoCompleteStyle();
+
+    sess.lastReadableQuery = undefined;
+    sess.lastResponse = undefined;
+    sess.parsedQuery = undefined;
+
+    loading();
+    load = new Promise((resolve) => {
+        debounce(() => {
+            getAndDrawResult(searchField, searchField?.value).then(() => {
+                // Hide or show
+                updateAutoCompleteStyle();
+                drawResults(searchField);
+                resolve(true);
+            }).catch(() => {
+                resolve(true);
+            });
+        }, debounceTime + 1)();
+    });
+    await load;
+    unloading();
+    
+    
+}
 // Add listeners for the search field, and set colors for styling (depending on color mode, light, dim, dark)
-const  initialize = async () => {
+const initialize = async () => {
     var inserted = false;
     let maxTriesFind = 50;
     let findCounter = 0;
     await apiKeySetup;
-    if(serviceError)
-    {
+    if (serviceError) {
         return; // Do initialize UI
     }
     while (!inserted) {
-        const s1 =  document.querySelector('header form[role="search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
-        const s2 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
-        const s3 =  document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
-        searchFields = [];
-        if(s1)
-            searchFields.push(s1);
-        if(s2)
-            searchFields.push(s2); 
-        if(s3 && !s2)
-            searchFields.push(s3);
+        searchFields = findSearchFields();
+        
         findCounter++;
 
         if (findCounter > maxTriesFind)
             break;
-        if (searchFields.length > 0)
+
+        if (searchFields.length > 0) {
             inserted = true;
-            
+        }
+
         else {
             await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 sec
             continue;
         }
 
-        setDynamicStyle();
-
-        if(searchFields?.length > 0)
-        {
+        if (searchFields?.length > 0) {
             getAndDrawResult(searchFields[0], searchFields[0]?.value);
         }
-        
-       /* lastSearchField.addEventListener("keypress", () => {
-            if(sess?.parsedQuery)
-            {
-               
-            }
-        }
-        );*/
-        console.log(searchFields)
-        searchFields.forEach((searchField) => searchField.addEventListener("keydown", async (event) => {
-            const arrowUp =  event.key == 'ArrowUp';
-            const arrowDown =  event.key == 'ArrowDown';
-            if(arrowUp || arrowDown)
-            {
-                // key down
-                const defaultResults = getDefaultResults(searchField);
-                const lastFocused = lastSelectedAutoCompleteOption == defaultResults.length - 1;
-                if(lastFocused && arrowDown)
-                {
-                    advancedSearchResultFocused = true;
-                    unfocusDefaultAutoCompleteOptions();
-                    stopEvent(event);
-                    return;
-                    
-                }
-                else
-                {
-                    if(advancedSearchResultFocused)
-                    {
-                        focusLastDefaultAutoCompleteOption();
+
+        /* lastSearchField.addEventListener("keypress", () => {
+             if(sess?.parsedQuery)
+             {
+                
+             }
+         }
+         );*/
+        //.filter(f=>!f.getAttribute(eventListenerTag))
+        searchFields.forEach((searchField) => {
+            searchField.setAttribute(eventListenerTag, 'true');
+            searchField.addEventListener("keydown", async (event) => {
+                const arrowUp = event.key == 'ArrowUp';
+                const arrowDown = event.key == 'ArrowDown';
+                if (arrowUp || arrowDown) {
+                    // key down
+                    const defaultResults = getDefaultResults(searchField);
+                    const lastFocused = lastSelectedAutoCompleteOption == defaultResults.length - 1;
+                    if (lastFocused && arrowDown) {
+                        advancedSearchResultFocused = true;
+                        unfocusDefaultAutoCompleteOptions();
                         stopEvent(event);
+                        return;
 
                     }
-                    advancedSearchResultFocused = false;
-                    
+                    else {
+                        if (advancedSearchResultFocused) {
+                            focusLastDefaultAutoCompleteOption();
+                            stopEvent(event);
 
-                }
-
-            }
-        }));
-        searchFields.forEach((searchField) => searchField.addEventListener("keyup", async (event) => {
-            const arrowUp =  event.key == 'ArrowUp';
-            const arrowDown =  event.key == 'ArrowDown';
-            lastSelectedSearchField = searchField;
-            if(arrowUp || arrowDown)
-            {
-                const defaultResults = getDefaultResults(searchField);
-                if(defaultResults)
-                {
-                    for (let i = 0; i < defaultResults.length; i++) {
-                        if(defaultResults[i].getAttribute('aria-selected') == 'true')
-                        {
-                            lastSelectedAutoCompleteOption  = i;
-                            break;
-              
                         }
-                        
-                    }                
+                        advancedSearchResultFocused = false;
+
+
+                    }
+
                 }
-                drawResults(searchField);
-                updateAutoCompleteStyle();
-            }
-      
-            if(arrowDown && advancedSearchResultFocused)
-            {
-                stopEvent(event);
-                return;
-            }
-        },
-        {
-            capture:true
-        }));
-        searchFields.forEach((searchField) => searchField.addEventListener("keyup", async (event) => {
-            if(event.key  == 'ArrowDown' || event.key == 'ArrowUp')
-                return;
-            const newValue = searchField?.value; 
-            await load;
-            if(newValue != searchField?.value)
-                return;
-            if(newValue == lastSearch)
-                return;
-            lastSearch = newValue;
-            unfocusAdvancedSearchField();
+            })
 
-            hasTypedAnything = true;
-            updateAutoCompleteStyle();  
-           
-            sess.lastReadableQuery = undefined;
-            sess.lastResponse = undefined;
-            sess.parsedQuery = undefined;
-           
-            loading();
-            load = new Promise((resolve) => {
-                debounce(() => {
-                    getAndDrawResult(searchField, searchField?.value).then(() => {
-                        // Hide or show
-                        updateAutoCompleteStyle();
-                        drawResults(searchField);
-                        resolve(true);
-                    }).catch(()=>
-                    {
-                        resolve(true);
+            searchField.addEventListener("keyup", async (event) => {
+                const arrowUp = event.key == 'ArrowUp';
+                const arrowDown = event.key == 'ArrowDown';
+                lastSelectedSearchField = searchField;
+                if (arrowUp || arrowDown) {
+                    const defaultResults = getDefaultResults(searchField);
+                    if (defaultResults) {
+                        for (let i = 0; i < defaultResults.length; i++) {
+                            if (defaultResults[i].getAttribute('aria-selected') == 'true') {
+                                lastSelectedAutoCompleteOption = i;
+                                break;
+
+                            }
+
+                        }
+                    }
+                    drawResults(searchField);
+                    updateAutoCompleteStyle();
+                }
+
+                if (arrowDown && advancedSearchResultFocused) {
+                    stopEvent(event);
+                    return;
+                }
+            },
+                {
+                    capture: true
+                });
+
+            searchField.addEventListener("keyup", async (event) => {
+                if (event.key == 'ArrowDown' || event.key == 'ArrowUp')
+                    return;
+                
+                await getAndDrawResultWithLoader(searchField);
+            },
+                {
+                    capture: true
+                });
+            searchField.addEventListener("click", () => {
+                lastSelectedSearchField = searchField;
+                restoreLastSearchQuery(searchField);
+                observer.disconnect();
+                if (getDefaultAdvancedSearchAutoCompleteList(searchField))
+                    observer.observe(getDefaultAdvancedSearchAutoCompleteList(searchField), {
+                        subtree: true,
+                        attributes: true,
+                        childList: true
                     });
-                }, debounceTime + 1)();
-            });
-            await load;
-            unloading();
-        },
-        {
-            capture:true
-        }));
-     
-       
-        searchFields.forEach((searchField) => searchField.addEventListener("click", () => {
-            
-            console.log('CLICK')
-            lastSelectedSearchField = searchField;
-            restoreLastSearchQuery(searchField);
-            observer.disconnect();  
-
-            if(getDefaultAdvancedSearchAutoCompleteList(searchField))
-                observer.observe(getDefaultAdvancedSearchAutoCompleteList(searchField), {
-                subtree: true,
-                attributes: true,
-                childList: true
-            }); 
-                
-            setTimeout(() => {
-                updateAutoCompleteStyle();
-    
-                drawResults(searchField);
-                
-            }, 0);
-        }));
+                setTimeout(() => {
+                    getAndDrawResultWithLoader(searchField);
+                }, 0);
+            })
+        });
     }
+}
+const isInitialized = (): boolean => {
+    if (searchFields.length == 0)
+        return false;
+
+    const newSearchFields = findSearchFields();
+    if (newSearchFields.length != searchFields.length)
+        return false;
+    for (let i = 0; i < newSearchFields.length; i++) {
+        if (newSearchFields[i] != searchFields[i])
+            return false;
+
+    }
+    return true;
 }
 
 document.body.addEventListener("keydown", event => {
@@ -1560,7 +1499,7 @@ document.body.addEventListener("keydown", event => {
         ctrlDown = true;
         return;
     }
-    
+
 });
 document.body.addEventListener("keyup", event => {
     if (event.keyCode === 17) {
@@ -1569,7 +1508,7 @@ document.body.addEventListener("keyup", event => {
     if (event.keyCode === 32) {
         // Space clicked, toggle suggestions
         if (ctrlDown) {
-            showAllSuggestions = !showAllSuggestions;   
+            showAllSuggestions = !showAllSuggestions;
             printSuggestions();
         }
         return;
@@ -1577,8 +1516,8 @@ document.body.addEventListener("keyup", event => {
 });
 document.addEventListener("keydown", event => {
 
-   
-    
+
+
     if (event.keyCode === 13 && advancedSearchResultFocused) {
         stopEvent(event);
         navigateSearch(lastSelectedSearchField, true);
@@ -1586,64 +1525,32 @@ document.addEventListener("keydown", event => {
     }
 });
 
-window.addEventListener('click',  (e) => {
+window.addEventListener('click', (e) => {
     if (e.target)
-        if (advancedSearchResultContainer.contains(e.target as Node) || lastSelectedSearchField?.contains(e.target as Node))
-        {
-        
+        if (advancedSearchResultContainer.contains(e.target as Node) || lastSelectedSearchField?.contains(e.target as Node)) {
+
         }
-        else if(lastSelectedSearchField) {
+        else if (lastSelectedSearchField) {
             ejectResult(lastSelectedSearchField);
         }
 });
 
 
 MutationObserver = window.MutationObserver
-var observer = new MutationObserver(function() {
-   
-   updateAutoCompleteStyle();   
+var observer = new MutationObserver(function () {
+
+    updateAutoCompleteStyle();
 });
-/*
-var lastUrl = window.location.href;
- console.log('CHANGE? ', window.location.href != lastUrl)
 
-    if(window.location.href != lastUrl)
-    {
-        console.log('init!')
-        initialize();
-    }
-    lastUrl = window.location.href;
-const targetNode = document;
-const observerOptions = {
-  childList: true,
-  attributes: true,
-  subtree: true
-}
-
-observer.observe(targetNode,observerOptions)*/
-
-const checkInitialize = async () =>
-{
-    if(!inserted)
+preRestoreFormUrl();
+const checkInitialize = async () => {
+    if (!isInitialized())
         await initialize();
-    console.log('CHECK INIT')
-    await new Promise((resolve)=>{
+    await new Promise((resolve) => {
         setTimeout(() => {
             resolve(true);
-        }, 2000);
+        }, 1000);
     });
     checkInitialize();
 }
 checkInitialize();
-
-chrome.runtime.onMessage.addListener(function(message:(string)){
-    console.log('GOT MESSAGE');
-
-     if (message == "__ql_nav__"){
-        initialize();
-
-     }
-});
-
-
-window.onhashchange = function(e){console.log('CHANGE DIR', e);}

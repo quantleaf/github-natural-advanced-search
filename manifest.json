@@ -1,10 +1,8 @@
 {
     "name": "Natural Advanced Search for GitHub",
-    "version": "0.0.1",
-    "description": "Perform Advanced Search on github with natural lnaguage",
-    "permissions": [
-      "webNavigation"
-    ],
+    "version": "0.0.2",
+    "description": "Perform Advanced Search on GitHub in Natural Language",
+    "permissions": [],
     "background": {
       "scripts": ["background.js"],
       "persistent": true
