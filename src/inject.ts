@@ -3,9 +3,9 @@ import { RepositorySearch, AdvancedSearch, UserSearch, IssueAndPrSearch, CodeSea
 import { translate, config, generateSchema, Field, _override } from '@quantleaf/query-sdk-node';
 import { QueryResponse } from '@quantleaf/query-request';
 import { StandardDomain } from '@quantleaf/query-schema';
-_override({
+/*_override({
     apiEndpoint: 'http://localhost:8080'
-});
+});*/
 //Models
 interface ReadableRepresentation {
     from?: string,
