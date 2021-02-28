@@ -1,5 +1,5 @@
-# Natural Advanced Search for PubMed
-Make PubMed Search fields auto detect search that resembles "advanced search" and perform them. Advanced search is currently today accessible through the advanced search UI in a combination with their own syntax. This extension combines both into a natural language experience.
+# Natural Advanced Search for GitHub
+Make GitHub Search fields auto detect search that resembles "advanced search" and perform them. Advanced search is currently today accessible through the advanced search UI or with the syntax. This extension provides a natural language alternative.
 ![Demo search](/../master/snap.png?raw=true)
 
 ## How to use
