@@ -3,7 +3,7 @@ Make GitHub Search fields auto detect search that resembles "advanced search" an
 ![Demo search](/../master/snap.png?raw=true)
 
 ## How to use
-Install from the [Chrome store](https://chrome.google.com/webstore/detail/natural-advanced-search-f/mepaacibaogonhhhacklhngfkkhlclfj) or clone the repo and use this as a development extension.
+Install from the [Chrome Store](https://chrome.google.com/webstore/detail/natural-advanced-search-f/mepaacibaogonhhhacklhngfkkhlclfj) or clone the repo and use this as a development extension.
 Now start type something in the search field on GitHub, for example: "date parser mit license stars > 1000"
 You can toggle show all suggestions with (ctrl) + (space).
 
