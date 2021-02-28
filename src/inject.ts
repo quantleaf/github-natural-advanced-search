@@ -1,11 +1,9 @@
 import { Compare, ConditionAnd, ConditionCompare, ConditionElement, ConditionNot, Unknown } from '@quantleaf/query-result'
 import { RepositorySearch, AdvancedSearch, UserSearch, IssueAndPrSearch, CodeSearch, allFieldsKey, allFieldsExactMatchKey, userSchemaKey, generalSchemaKey, issueSchemaKey, repoSchemaKey, codeSchemaKey, topicSchemaKey, userNameFields, TopicSearch, commitSchemaKey, CommitSearch, DiscussionSearch, discussionSchemaKey, } from './advanced-search-schema'; //   
-import { translate, config, generateSchema, Field, _override } from '@quantleaf/query-sdk-node';
+import { translate, config, generateSchema, Field } from '@quantleaf/query-sdk-node';
 import { QueryResponse } from '@quantleaf/query-request';
 import { StandardDomain } from '@quantleaf/query-schema';
-/*_override({
-    apiEndpoint: 'http://localhost:8080'
-});*/
+
 //Models
 interface ReadableRepresentation {
     from?: string,
@@ -352,7 +350,7 @@ const restoreLastSearchQuery = async (searchField: HTMLInputElement) => {
     if (hasTypedAnything) {
         return;
     }
-
+    
     if (lastSearchFromUrl) {
         restoreSearchFieldText(searchField, lastSearchFromUrl);
         getAndDrawResult(searchField, lastSearchFromUrl);
@@ -460,7 +458,7 @@ const navigateSearch = async (fromSearchField: HTMLInputElement, useAdvancedSear
                 return;
             }
         } catch (error) {
-            console.error(error);
+           // console.error(error);
             // alert(error.message);   
             throw new Error(error)
         }
@@ -1361,6 +1359,7 @@ const initialize = async () => {
     var inserted = false;
     let maxTriesFind = 50;
     let findCounter = 0;
+    hasTypedAnything = false;
     await apiKeySetup;
     if (serviceError) {
         return; // Do initialize UI
@@ -1549,7 +1548,7 @@ const checkInitialize = async () => {
     await new Promise((resolve) => {
         setTimeout(() => {
             resolve(true);
-        }, 1000);
+        }, 500);
     });
     checkInitialize();
 }
