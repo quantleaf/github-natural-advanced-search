@@ -53,7 +53,8 @@ var lastSuggestions: string | undefined;
 //var limitedSuggestions: boolean = false;
 
 var searchFields: HTMLInputElement[] = [];
-var lastSelectedSearchField: HTMLInputElement;
+var restoredSearchFields:Set<number> = new Set();
+var lastFocusedSearchField: HTMLInputElement;
 
 var hasTypedAnything = false;
 var load: Promise<any>;
@@ -127,13 +128,12 @@ title.style.fontWeight = '600';
 header.appendChild(title);
 
 var loadingSpinner = document.createElement('div');
-const spinner = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<svg xmlns=\"http:\/\/www.w3.org\/2000\/svg\" xmlns:xlink=\"http:\/\/www.w3.org\/1999\/xlink\" style=\"margin: auto; background: none; display: block; shape-rendering: auto;\" width=\"20px\" height=\"20px\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"xMidYMid\">\r\n<g transform=\"rotate(0 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.9166666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(30 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.8333333333333334s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(60 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.75s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(90 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.6666666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(120 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.5833333333333334s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(150 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.5s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(180 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.4166666666666667s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(210 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.3333333333333333s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(240 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.25s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(270 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.16666666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(300 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.08333333333333333s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(330 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\"#000000\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"0s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g>\r\n<\/svg>";
+const spinner = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<svg xmlns=\"http:\/\/www.w3.org\/2000\/svg\" xmlns:xlink=\"http:\/\/www.w3.org\/1999\/xlink\" style=\"margin: auto; background: none; display: block; shape-rendering: auto;\" width=\"20px\" height=\"20px\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"xMidYMid\">\r\n<g transform=\"rotate(0 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.9166666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(30 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.8333333333333334s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(60 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.75s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(90 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.6666666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(120 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.5833333333333334s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(150 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.5s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(180 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.4166666666666667s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(210 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.3333333333333333s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(240 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.25s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(270 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.16666666666666666s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(300 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"-0.08333333333333333s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g><g transform=\"rotate(330 50 50)\">\r\n  <rect x=\"47\" y=\"18\" rx=\"3\" ry=\"6\" width=\"6\" height=\"12\" fill=\""+textColor+"\">\r\n    <animate attributeName=\"opacity\" values=\"1;0\" keyTimes=\"0;1\" dur=\"1s\" begin=\"0s\" repeatCount=\"indefinite\"><\/animate>\r\n  <\/rect>\r\n<\/g>\r\n<\/svg>";
 var loadingSpinnerSvg = document.createElement('div');
 loadingSpinnerSvg.style.marginLeft = '4px';
 loadingSpinnerSvg.style.marginRight = '4px';
 
 loadingSpinnerSvg.style.marginTop = '2px';
-
 loadingSpinnerSvg.innerHTML = spinner;
 var loadingSpinnerText = document.createElement('span');
 loadingSpinnerText.innerHTML = 'Loading'
@@ -262,7 +262,7 @@ advancedSearchResultContainer.appendChild(footer);
 
 
 const unfocusDefaultAutoCompleteOptions = () => {
-    const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastSelectedSearchField);
+    const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastFocusedSearchField);
     for (let i = 0; i < defaultList?.children.length; i++) {
         const element = defaultList?.children[i];
         (element as HTMLElement)?.classList.remove("navigation-focus");
@@ -271,7 +271,7 @@ const unfocusDefaultAutoCompleteOptions = () => {
 }
 
 const focusLastDefaultAutoCompleteOption = () => {
-    const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastSelectedSearchField);
+    const defaultList = getDefaultAdvancedSearchAutoCompleteList(lastFocusedSearchField);
     if (defaultList) {
         const element = defaultList.lastElementChild;
         (element as HTMLElement)?.classList.add("navigation-focus");
@@ -342,6 +342,7 @@ const fromSession = () => {
 
 const preRestoreFormUrl = () => {
     lastSearchFromUrl =  fromSession();
+
 }
 
 
@@ -351,9 +352,11 @@ const restoreLastSearchQuery = async (searchField: HTMLInputElement) => {
         return;
     }
     
-    if (lastSearchFromUrl) {
+    if (lastSearchFromUrl && !restoredSearchFields.has(searchFields.indexOf(searchField))) {
         restoreSearchFieldText(searchField, lastSearchFromUrl);
-        getAndDrawResult(searchField, lastSearchFromUrl);
+        getResults(searchField, lastSearchFromUrl);
+        restoredSearchFields.add(searchFields.indexOf(searchField));
+
     }
 }
 
@@ -489,7 +492,7 @@ const navigateSearch = async (fromSearchField: HTMLInputElement, useAdvancedSear
 }
 
 // The Quantleaf Query API call
-const getAndDrawResult = async (searchField: HTMLInputElement, input: string = '') => {
+const getResults = async (searchField: HTMLInputElement, input: string = '') => {
     await apiKeySetup;
     const suggestOffset = searchField.selectionStart != null ?  Math.max(searchField.selectionStart - 1,0) : input.length;
     const resp = input.length > maxSearchLength ? undefined : await translate(input, schemaObjects, { query: {}, suggest: { limit: 300, offset: suggestOffset } }, { nestedConditions: false, negativeConditions: true, concurrencySize: 1 })
@@ -573,8 +576,6 @@ const handleResponse = (searchField: HTMLInputElement, input: string, responseBo
             }
 
         }
-
-
     }
 
 
@@ -584,7 +585,9 @@ const handleResponse = (searchField: HTMLInputElement, input: string, responseBo
     if (sess.lastReadableQuery)
         resultPrint(sess.lastReadableQuery)
     else
-        noResultsPrint()
+        noResultsPrint();
+
+
 }
 const resultPrint = (readable: ReadableRepresentation) => {
     if (title && readable.from)
@@ -605,7 +608,7 @@ const getAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): 
         _advancedSearchAutoCompleteContainer = document.createElement('div');
         _advancedSearchAutoCompleteContainer.addEventListener("click", (event) => {
             stopEvent(event);
-            navigateSearch(lastSelectedSearchField, true);
+            navigateSearch(lastFocusedSearchField, true);
         });
     }
 
@@ -640,13 +643,13 @@ const getAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): 
 
 const updateAutoCompleteStyle = () => {
 
-    const def = getDefaultAdvancedSearchAutoCompleteContainer(lastSelectedSearchField);
-    const defaultResults = getDefaultResults(lastSelectedSearchField);
+    const def = getDefaultAdvancedSearchAutoCompleteContainer(lastFocusedSearchField);
+    const defaultResults = getDefaultResults(lastFocusedSearchField);
     if (def && def instanceof HTMLElement)
         def.style.boxShadow = searchResultBoxShadow;
 
 
-    const container = getAdvancedSearchAutoCompleteContainer(lastSelectedSearchField);
+    const container = getAdvancedSearchAutoCompleteContainer(lastFocusedSearchField);
     let calcStyleHeight: string = '0px';
     let cStyle: any = null;
     if (def) {
@@ -728,7 +731,8 @@ const getDefaultResults = (searchField: HTMLInputElement): HTMLLIElement[] => {
 }
 
 const hasAdvancedResultsToShow = (): boolean => {
-    if (!sess.parsedQuery || Object.keys(sess.parsedQuery as any).length == 0)
+
+    if (!sess.lastReadableQuery || !sess.lastReadableQuery.query )
         return false;
     return true;
 }
@@ -739,7 +743,9 @@ const getDefaultAdvancedSearchAutoCompleteList = (searchField: HTMLElement): HTM
 
 const drawResults = (searchField: HTMLInputElement, force?: boolean) => {
 
+
     if (!hasAdvancedResultsToShow() && !lastSuggestions && !force) {
+
         ejectResult(searchField);
         return;
     }
@@ -1320,18 +1326,19 @@ const getAndDrawResultWithLoader = async (searchField:HTMLInputElement) =>
     const newValue = searchField?.value;
     const newSelectionStart = searchField.selectionStart;
     await load;
-    if (newValue != searchField?.value)
+    if (newValue != searchField?.value || (newValue == lastSearch && newSelectionStart == lastSelectionStart))
+    {
+        
+        unfocusAdvancedSearchField
+        drawResults(searchField);
+        updateAutoCompleteStyle();
         return;
-    if (newValue == lastSearch && newSelectionStart == lastSelectionStart)
-        return;
+    }
         
     lastSelectionStart = newSelectionStart as number;
     lastSearch = newValue;
     unfocusAdvancedSearchField();
-
-    hasTypedAnything = true;
     updateAutoCompleteStyle();
-
     sess.lastReadableQuery = undefined;
     sess.lastResponse = undefined;
     sess.parsedQuery = undefined;
@@ -1339,10 +1346,10 @@ const getAndDrawResultWithLoader = async (searchField:HTMLInputElement) =>
     loading();
     load = new Promise((resolve) => {
         debounce(() => {
-            getAndDrawResult(searchField, searchField?.value).then(() => {
+            getResults(searchField, searchField?.value).then(() => {
                 // Hide or show
-                updateAutoCompleteStyle();
                 drawResults(searchField);
+                updateAutoCompleteStyle();
                 resolve(true);
             }).catch(() => {
                 resolve(true);
@@ -1354,12 +1361,31 @@ const getAndDrawResultWithLoader = async (searchField:HTMLInputElement) =>
     
     
 }
+const searchFieldFocusEvent = (searchField) =>
+{
+    if(lastFocusedSearchField != searchField)
+                    hasTypedAnything = false;
+    lastFocusedSearchField = searchField;
+    restoreLastSearchQuery(searchField);
+    observer.disconnect();
+    if (getDefaultAdvancedSearchAutoCompleteList(searchField))
+        observer.observe(getDefaultAdvancedSearchAutoCompleteList(searchField), {
+            subtree: true,
+            attributes: true,
+            childList: true
+        });
+
+    setTimeout(() => {
+        getAndDrawResultWithLoader(searchField);
+    }, 0);
+}
 // Add listeners for the search field, and set colors for styling (depending on color mode, light, dim, dark)
 const initialize = async () => {
     var inserted = false;
     let maxTriesFind = 50;
     let findCounter = 0;
     hasTypedAnything = false;
+    restoredSearchFields = new Set();
     await apiKeySetup;
     if (serviceError) {
         return; // Do initialize UI
@@ -1382,7 +1408,7 @@ const initialize = async () => {
         }
 
         if (searchFields?.length > 0) {
-            getAndDrawResult(searchFields[0], searchFields[0]?.value);
+            getResults(searchFields[0], searchFields[0]?.value);
         }
 
         /* lastSearchField.addEventListener("keypress", () => {
@@ -1424,9 +1450,10 @@ const initialize = async () => {
             })
 
             searchField.addEventListener("keyup", async (event) => {
+                hasTypedAnything = true;
                 const arrowUp = event.key == 'ArrowUp';
                 const arrowDown = event.key == 'ArrowDown';
-                lastSelectedSearchField = searchField;
+                lastFocusedSearchField = searchField;
                 if (arrowUp || arrowDown) {
                     const defaultResults = getDefaultResults(searchField);
                     if (defaultResults) {
@@ -1462,18 +1489,15 @@ const initialize = async () => {
                     capture: true
                 });
             searchField.addEventListener("click", () => {
-                lastSelectedSearchField = searchField;
-                restoreLastSearchQuery(searchField);
-                observer.disconnect();
-                if (getDefaultAdvancedSearchAutoCompleteList(searchField))
-                    observer.observe(getDefaultAdvancedSearchAutoCompleteList(searchField), {
-                        subtree: true,
-                        attributes: true,
-                        childList: true
-                    });
-                setTimeout(() => {
-                    getAndDrawResultWithLoader(searchField);
-                }, 0);
+                if(lastFocusedSearchField != searchField)
+                {
+                    lastFocusedSearchField = searchField;
+                    searchFieldFocusEvent(searchField);
+                }
+            })
+            searchField.addEventListener("focus", () => {
+
+                searchFieldFocusEvent(searchField);
             })
         });
     }
@@ -1519,20 +1543,24 @@ document.addEventListener("keydown", event => {
 
     if (event.keyCode === 13 && advancedSearchResultFocused) {
         stopEvent(event);
-        navigateSearch(lastSelectedSearchField, true);
+        navigateSearch(lastFocusedSearchField, true);
         return;
     }
 });
 
 window.addEventListener('click', (e) => {
     if (e.target)
-        if (advancedSearchResultContainer.contains(e.target as Node) || lastSelectedSearchField?.contains(e.target as Node)) {
+        if (advancedSearchResultContainer.contains(e.target as Node) || lastFocusedSearchField?.contains(e.target as Node)) {
 
         }
-        else if (lastSelectedSearchField) {
-            ejectResult(lastSelectedSearchField);
+        else if (lastFocusedSearchField) {
+            ejectResult(lastFocusedSearchField);
         }
 });
+
+window.onblur = function() {
+    ejectResult(lastFocusedSearchField);
+};
 
 
 MutationObserver = window.MutationObserver
