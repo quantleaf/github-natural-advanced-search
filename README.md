@@ -4,9 +4,17 @@ Make GitHub Search fields auto detect search that resembles "advanced search" an
 You can install it directly from the [Chrome Store](https://chrome.google.com/webstore/detail/natural-advanced-search-f/mepaacibaogonhhhacklhngfkkhlclfj).
 
 ## How to build
-``
+Requires Node.js (Tested with v14.15.1)
+
+`
+npm install
+` 
+
+`
 npm run build-release
-``
+`
+
+This will create a folder named *build*.
 
 With this folder in mind, go to chrome://extensions and press "Load unpacked" to use as a Chrome Extension, or press "Pack extension" to use it as a Firefox extension (this will generate a build.crx file)
 
