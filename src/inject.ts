@@ -40,7 +40,7 @@ const maxSearchLength = 250;
 const debounceTime = 200; //ms
 const api = 'https://api.query.quantleaf.com';
 const apiKeySetupFunction = async () => {
-    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => { config(apiKey); return apiKey })).catch(() => { serviceError = true; return null; });
+    await fetch(api + '/auth/key/demo').then((resp) => resp.text().then((apiKey) => { config(apiKey); return apiKey })).catch((e) => {console.error(e); serviceError = true; return null; });
 }
 var apiKeySetup = apiKeySetupFunction();
 
@@ -1147,6 +1147,7 @@ const comparatorSymbolNonText = (comp: Compare) => {
     }
     return '';
 }
+
 const compareValue = (comp: Compare) => {
     if (comp.eq != undefined)
         return comp.eq
@@ -1237,6 +1238,9 @@ const parseOrdinaryConditions = (schemaKey: string, condition: (ConditionAnd | C
     return {};
 
 }
+
+
+
 /*
 const wordSplit = (words) => {
     if (!words)
@@ -1312,12 +1316,14 @@ const findSearchFields = (): HTMLInputElement[] => {
     const s2 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
     const s3 = document.querySelector('main form[action="/search"] input[type="text"][spellcheck="false"][autocomplete="off"]') as HTMLInputElement;
     const s: HTMLInputElement[] = [];
+
     if (s1)
         s.push(s1);
     if (s2)
         s.push(s2);
     if (s3 && !s2)
         s.push(s3);
+        
     return s;
 }
 
@@ -1392,7 +1398,7 @@ const initialize = async () => {
     }
     while (!inserted) {
         searchFields = findSearchFields();
-        
+
         findCounter++;
 
         if (findCounter > maxTriesFind)

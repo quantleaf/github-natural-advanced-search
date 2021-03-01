@@ -1,9 +1,16 @@
 # Natural Advanced Search for GitHub
 Make GitHub Search fields auto detect search that resembles "advanced search" and perform them. Advanced search is currently today accessible through the advanced search UI or with the syntax. This extension provides a natural language alternative.
-![Demo search](/../master/snap.png?raw=true)
+![Demo search](/../master/snap.png?raw=true). 
+You can install it directly from the [Chrome Store](https://chrome.google.com/webstore/detail/natural-advanced-search-f/mepaacibaogonhhhacklhngfkkhlclfj).
+
+## How to build
+``
+npm run build-release
+``
+
+With this folder in mind, go to chrome://extensions and press "Load unpacked" to use as a Chrome Extension, or press "Pack extension" to use it as a Firefox extension (this will generate a build.crx file)
 
 ## How to use
-Install from the [Chrome Store](https://chrome.google.com/webstore/detail/natural-advanced-search-f/mepaacibaogonhhhacklhngfkkhlclfj) or clone the repo and use this as a development extension.
 Now start type something in the search field on GitHub, for example: "date parser mit license stars > 1000"
 You can toggle show all suggestions with (ctrl) + (space).
 

@@ -2,7 +2,9 @@
     "name": "Natural Advanced Search for GitHub",
     "version": "0.0.3",
     "description": "Perform Advanced Search on GitHub in Natural Language",
-    "permissions": [],
+    "permissions": [
+      "https://api.query.quantleaf.com/*"
+    ],
     "background": {
       "scripts": ["background.js"],
       "persistent": true
