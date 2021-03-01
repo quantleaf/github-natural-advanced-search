@@ -3,3 +3,5 @@ build/
 build.zip
 .vscode
 **/.DS_Store
+build.crx
+build.pem
