@@ -188,7 +188,7 @@ export class RepositorySearch  extends AdvancedSearch {
 
     @FieldInfo({
         key: 'forks',
-        description: ['amount of forks','forks amount','forks count','number of forks'],
+        description: ['number of forks','forks count','number of forks'],
         domain: StandardDomain.NUMBER
     })
     numberOfForks: string;
@@ -202,7 +202,7 @@ export class RepositorySearch  extends AdvancedSearch {
 
     @FieldInfo({
         key: 'topics',
-        description: ['amount of topics','topics amount','topics count','number of topics'],
+        description: ['number of topics','topics count','number of topics'],
         domain: StandardDomain.NUMBER
     })
     numberOfTopics: string;
@@ -256,7 +256,7 @@ export class TopicSearch  extends TextDateSearch {
 
     @FieldInfo({
         key: 'repositories',
-        description: ['topic number of repositories','topic number of repos','number of repos','amount of repos'],
+        description: ['topic number of repositories','topic number of repos','number of repos','number of repos'],
         domain: StandardDomain.NUMBER
     })
     topicWithNumberOfRepositories: number;
@@ -400,7 +400,7 @@ export class DiscussionSearch  extends RepositorySearch {
 
     @FieldInfo({
         key: 'comments',
-        description: ['number of discussion comments', 'number of comments','amount of comments'],
+        description: ['number of discussion comments', 'number of comments'],
         domain: StandardDomain.NUMBER
     })
     discussionComments: number;
@@ -507,7 +507,7 @@ export class IssueAndPrSearch  extends AdvancedSearch {
 
     @FieldInfo({
         key: 'comments',
-        description: ['number of issue comments', 'number of pull request comments', 'number of comments','amount of comments','comments'],
+        description: ['number of issue comments', 'number of pull request comments', 'number of comments','comments'],
         domain: StandardDomain.NUMBER
     })
     issueComments: number;
@@ -742,14 +742,14 @@ export class UserSearch extends AdvancedSearch {
 
     @FieldInfo({
         key: 'followers',
-        description: ['user follower count','user account followers','user follower amount','followers','amount of followers','number of followers'],
+        description: ['user follower count','user account followers','user follower amount','followers','number of followers'],
         domain: StandardDomain.NUMBER
     })
     followers: number;
 
     @FieldInfo({
         key: 'repos',
-        description: ['user amount of repos','amount of repos','number of repos','amount of repositories','number of repositories'],
+        description: ['user number of repos','number of repos','number of repositories'],
         domain: StandardDomain.NUMBER
     })
     userRepos: number;
