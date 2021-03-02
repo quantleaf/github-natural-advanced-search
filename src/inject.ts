@@ -48,9 +48,7 @@ var apiKeySetup = apiKeySetupFunction();
 
 var serviceError = false;
 var sess: QuerySession = {}
-//var lastRequestTime: number = new Date().getTime();
 var lastSuggestions: string | undefined;
-//var limitedSuggestions: boolean = false;
 
 var searchFields: HTMLInputElement[] = [];
 var restoredSearchFields:Set<number> = new Set();
@@ -70,7 +68,7 @@ var lastSelectionStart = -1;
 
 var lastSearchFromUrl: (string | undefined) = undefined; 
 
-// UI (nasty since we are manipulating DOM and are not injecting html with iframes)
+//  ---- UI (nasty since we are manipulating DOM and are not injecting html with iframes) ---
 const eventListenerTag = '__ql__'
 const focusedColor = 'var(--color-bg-info-inverse)';
 const focusedTextColor = 'var(--color-text-white)';
@@ -278,25 +276,6 @@ const focusLastDefaultAutoCompleteOption = () => {
         (element as HTMLElement)?.setAttribute('aria-selected', 'true');
     }
 }
-/*
-const  getPathTo = (element) => {
-    if (element.id!=='')
-        return 'id("'+element.id+'")';
-    if (element===document.body)
-        return element.tagName;
-
-    var ix= 0;
-    var siblings= element.parentNode.childNodes;
-    for (var i= 0; i<siblings.length; i++) {
-        var sibling= siblings[i];
-        if (sibling===element)
-            return getPathTo(element.parentNode)+'/'+element.tagName+'['+(ix+1)+']';
-        if (sibling.nodeType===1 && sibling.tagName===element.tagName)
-            ix++;
-    }
-}*/
-
-
 
 const loading = () => {
     unloading();
@@ -310,6 +289,49 @@ const unloading = () => {
         // does not exist   
     }
 }
+
+var _advancedSearchAutoCompleteContainer: any = null;
+const getAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): HTMLElement => {
+
+    if (!_advancedSearchAutoCompleteContainer) {
+
+        _advancedSearchAutoCompleteContainer = document.createElement('div');
+        _advancedSearchAutoCompleteContainer.addEventListener("click", (event) => {
+            stopEvent(event);
+            navigateSearch(lastFocusedSearchField, true);
+        });
+    }
+
+    const lb = getDefaultAdvancedSearchAutoCompleteContainer(searchField);
+
+    // Make sure it is last in the ist of the parent
+    // &&
+    // modify style of lb parent so its position is relative to fix som issues on /search
+
+    if (lb?.parentElement) {
+
+        lb.parentElement.style.position = 'relative';
+        let index = -1;
+        for (let i = 0; i < lb.parentElement.children.length; i++) {
+            if (lb.parentElement.children[i] == _advancedSearchAutoCompleteContainer) {
+                index = i;
+            }
+
+        }
+        if (index != lb.parentElement.children.length - 1) {
+            if (index != -1) {
+                lb.parentElement.removeChild(_advancedSearchAutoCompleteContainer);
+            }
+        }
+        lb?.parentElement?.appendChild(_advancedSearchAutoCompleteContainer);
+
+    }
+    return _advancedSearchAutoCompleteContainer;
+}
+
+
+
+// --- End of UI and beginning of the parsing of the Query translation response to GitHub URL ---
 
 // The search experience, code that define the translation to natural language to the generalized query structure
 // and code that transform the generalized query structure into google query syntax
@@ -329,9 +351,6 @@ generatedSchemas.forEach((s) => {
     if (s.name.key)
         fieldsByKey.set(s.name.key, schemaMap);
 })
-
-//const fieldIsDate = (field:Field) => field.domain = StandardDomain.DATE;
-
 
 const fromSession = () => {
     const url = new URL(window.location.href).searchParams.get(redirectFromQueryKey);
@@ -469,11 +488,9 @@ const navigateSearch = async (fromSearchField: HTMLInputElement, useAdvancedSear
 
     }
 
-    // clean up url and tnavigate
-    // reset url
+
     let newUrl = window.location.href;
     const urlObj = new URL(newUrl);
-
     if (sess) {
         const urlParams = searchQueryParamsByKey(sess.parsedQuery);
         urlParams.forEach((param, key) => {
@@ -511,10 +528,7 @@ const calculateSuggestions = () => {
     lastSuggestions = suggestions;
 }
 
-
 const noResults = 'No results';
-// Injects advanced search UI as the first result element
-
 
 const handleResponse = (searchField: HTMLInputElement, input: string, responseBody?: QueryResponse) => {
 
@@ -600,44 +614,7 @@ const noResultsPrint = () => {
     textContainer.innerHTML = noResults;
 }
 
-var _advancedSearchAutoCompleteContainer: any = null;
-const getAdvancedSearchAutoCompleteContainer = (searchField: HTMLInputElement): HTMLElement => {
 
-    if (!_advancedSearchAutoCompleteContainer) {
-
-        _advancedSearchAutoCompleteContainer = document.createElement('div');
-        _advancedSearchAutoCompleteContainer.addEventListener("click", (event) => {
-            stopEvent(event);
-            navigateSearch(lastFocusedSearchField, true);
-        });
-    }
-
-    const lb = getDefaultAdvancedSearchAutoCompleteContainer(searchField);
-
-    // Make sure it is last in the ist of the parent
-    // &&
-    // modify style of lb parent so its position is relative to fix som issues on /search
-
-    if (lb?.parentElement) {
-
-        lb.parentElement.style.position = 'relative';
-        let index = -1;
-        for (let i = 0; i < lb.parentElement.children.length; i++) {
-            if (lb.parentElement.children[i] == _advancedSearchAutoCompleteContainer) {
-                index = i;
-            }
-
-        }
-        if (index != lb.parentElement.children.length - 1) {
-            if (index != -1) {
-                lb.parentElement.removeChild(_advancedSearchAutoCompleteContainer);
-            }
-        }
-        lb?.parentElement?.appendChild(_advancedSearchAutoCompleteContainer);
-
-    }
-    return _advancedSearchAutoCompleteContainer;
-}
 
 
 
@@ -792,26 +769,10 @@ const insertText = (searchField: HTMLInputElement, text?: string) => {
     }
 
 }
-/*
-const searchFieldTextFromParsedQuery = (parsedQuery?: ParsedQuery) => {
-    if (!parsedQuery)
-        return undefined;
-    return  parsedQuery.searchParams ? 'p='+parsedQuery.searchParams : '';
-}*/
+
 
 const searchQueryParamsByKey = (parsedQuery?: ParsedQuery): Map<string, string> => {
     const currentQueryParams = new Map<string, string>();
-    /*  const currentUrl = new URL(window.location.href);
-      if(parsedQuery?.queryParams && !parsedQuery?.queryParams[resultTypeQueryKey]) // if type is determined by query, dont preserve any parameters
-      {
-          currentUrl.searchParams.forEach((v,k)=> // preserve some params (from user UI input)
-          {
-              if(k != resultTypeQueryKey)  // Only preserve prior result type query params
-                  return; 
-              currentQueryParams.set(k,v);
-          }); 
-      }*/
-
     if (!parsedQuery?.queryParams)
         return currentQueryParams;
     const groups = new Map<string, string[]>();
@@ -856,24 +817,9 @@ const printSuggestions = () => {
 
     if (lastSuggestions) {
         suggestionsContainer.innerHTML = `Suggestions</br><i>${lastSuggestions}</i>`;
-        /*
-         try {
-             suggestionsWrapper.removeChild(suggestionViewToggle)
-             
-         } catch (error) {
-             
-         }
-         if(limitedSuggestions)
-                 suggestionsWrapper.appendChild(suggestionViewToggle)*/
 
     }
     else {
-        /*  try {
-              suggestionsWrapper.removeChild(suggestionViewToggle)
-  
-          } catch (error) {
-              
-          }*/
         suggestionsContainer.innerHTML = `<i>No suggestions available</i>`;
 
     }
@@ -1385,7 +1331,8 @@ const searchFieldFocusEvent = (searchField) =>
         getAndDrawResultWithLoader(searchField);
     }, 0);
 }
-// Add listeners for the search field, and set colors for styling (depending on color mode, light, dim, dark)
+
+// Add listeners for the search fields
 const initialize = async () => {
     var inserted = false;
     let maxTriesFind = 50;
@@ -1417,14 +1364,6 @@ const initialize = async () => {
             getResults(searchFields[0], searchFields[0]?.value);
         }
 
-        /* lastSearchField.addEventListener("keypress", () => {
-             if(sess?.parsedQuery)
-             {
-                
-             }
-         }
-         );*/
-        //.filter(f=>!f.getAttribute(eventListenerTag))
         searchFields.forEach((searchField) => {
             searchField.setAttribute(eventListenerTag, 'true');
             searchField.addEventListener("keydown", async (event) => {
@@ -1568,14 +1507,18 @@ window.onblur = function() {
     ejectResult(lastFocusedSearchField);
 };
 
-
+// Fixes some issue where the UI changes and the injected search result option style does not conform to it
 MutationObserver = window.MutationObserver
 var observer = new MutationObserver(function () {
 
     updateAutoCompleteStyle();
 });
 
+// We want to know what we search the last time, so we can restore the search field to the 'natural language' interpretation when it is clicked/focused
 preRestoreFormUrl();
+
+
+// This method is needed since the DOM can change without proper page navigation
 const checkInitialize = async () => {
     if (!isInitialized())
         await initialize();

@@ -1,5 +1,11 @@
+/*
+    In this class the 'Schema' is defined that is used by the query.quantleaf.com API, 
+    that lets use translate natural language into a query structure. This is basically 
+    a class with field, with decorators that explain what the fields mean in natural lanugage.
+ */
+
 import { StandardDomain } from '@quantleaf/query-schema';
-import { ClassInfo, FieldInfo } from '@quantleaf/query-sdk-node'; //, translate, config
+import { ClassInfo, FieldInfo } from '@quantleaf/query-sdk-node'; 
 
 export const allFieldsKey = 'allFields';
 export const allFieldsExactMatchKey = 'allFieldsExactMatch';
@@ -23,7 +29,6 @@ const reviewedByFieldKey = 'reviewed-by';
 const reviewRequestedFieldKey = 'review-requested';
 
 export const userNameFields:Set<string> = new Set<string>([ownerFieldKey,authorFieldKey,commenterFieldKey,mentionsFieldKey,assigneeFieldKey,reviewedByFieldKey,reviewRequestedFieldKey])
-
 
 
 class TextSearch {
